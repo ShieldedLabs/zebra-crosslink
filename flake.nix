@@ -8,6 +8,8 @@
       system: (
         let
           pname = "zebra-crosslink";
+
+          # Use the version out of `zebrad`'s package metadata.
           version = (
             let
               inherit (builtins) readFile fromTOML;
@@ -16,55 +18,46 @@
               cargoToml.package.version
           );
 
+          # We use standard nixpkgs-unstable:
           overlays = [];
           pkgs = import nixpkgs {
             inherit system overlays;
           };
 
+          # Import nix-specific plumbing:
           inherit (pkgs)
-            # nix plumbing:
             mkShell
             writeScript
           ;
 
+          # We use the latest `libclang`:
           inherit (pkgs.llvmPackages)
             libclang
           ;
 
+          # Native (non-cargo) dependencies which only need to be present during builds:
           nativeBuildInputs = with pkgs; [
             pkg-config
             protobuf
           ];
 
+          # Native (non-cargo) dependencies which need to be present during build- & run- times:
           buildInputs = with pkgs; [
             libclang
             rocksdb
           ];
 
+          # In `nix develop` mode, we have to explicitly make `cargo` available (in `nix build` time the `rustPlatform` nix API manages rust builds):
           devShellInputs = with pkgs; [
             cargo
           ];
         in {
-          # packages.default = pkgs.rustPlatform.buildRustPackage {
-          #   inherit pname version nativeBuildInputs buildInputs;
-          #   src = ./.;
-          #   # cargoBuildFlags = "-p app";
+          packages.default = abort "`nix build` not yet implemented";
 
-          #   # patchPhase = ''
-
-          #   #   set -x
-
-          #   #   PKG_CONFIG_ALLOW_SYSTEM_LIBS=1 PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1 pkg-config --libs --cflags fontconfig
-
-          #   #   set +x
-          #   #   exit 1
-          #   # '';
-
-          #   cargoLock = {
-          #     lockFile = ./Cargo.lock;
-          #   };
-          # };
-
+          # The `nix develop` shell:
+          # - Uses `clang` for C compiler.
+          # - Includes `cargo` plus all `nativeBuildOutputs`.
+          # - Sets `LIBCLANG_PATH` explicitly.
           devShells.default = (mkShell.override { stdenv = pkgs.llvmPackages.stdenv; }) {
             inherit buildInputs;
             nativeBuildInputs = nativeBuildInputs ++ devShellInputs;
