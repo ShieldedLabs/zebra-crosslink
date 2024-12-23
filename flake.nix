@@ -50,6 +50,7 @@
           # In `nix develop` mode, we have to explicitly make `cargo` available (in `nix build` time the `rustPlatform` nix API manages rust builds):
           devShellInputs = with pkgs; [
             cargo
+            cargo-nextest
           ];
         in {
           packages.default = abort "`nix build` not yet implemented";
