@@ -115,8 +115,8 @@ jobs:
     steps:
       - run: echo 'github.event_name:' ${{ github.event_name }}
       - run: echo 'github.event.pull_request.head.repo.fork:' ${{ github.event.pull_request.head.repo.fork }}
-      - name: diagnose the github.event.pull_request.head.repo
-        run: echo 'github.event.pull_request.head.repo.fork:' ${{ github.event.pull_request.head.repo }}
+      - name: diagnose the github.event.pull_request.head.repo.full_name
+        run: echo 'github.event.pull_request.head.repo.full_name:' ${{ github.event.pull_request.head.repo.full_name }}
 
   # Build the docker image used by the tests.
   #
