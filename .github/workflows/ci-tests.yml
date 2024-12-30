@@ -111,6 +111,7 @@ env:
 jobs:
   diagnose-github-ci-problem:
     name: Diagnose Work-in-progress Github Problem
+    runs-on: ubuntu-latest
     steps:
       - run: echo 'github.event_name:' ${{ github.event_name }}
       - run: echo 'github.event.pull_request.head.repo.fork:' ${{ github.event.pull_request.head.repo.fork }}
