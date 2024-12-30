@@ -109,6 +109,12 @@ env:
 #! The job names in `sub-ci-unit-tests-docker.yml`, `sub-ci-integration-tests-gcp.yml`,
 #! `ci-tests.patch.yml` and `ci-tests.patch-external.yml` must be kept in sync.
 jobs:
+  diagnose-github-ci-problem:
+    name: Diagnose Work-in-progress Github Problem
+    steps:
+      - run: echo 'github.event_name:' ${{ github.event_name }}
+      - run: echo 'github.event.pull_request.head.repo.fork:' ${{ github.event.pull_request.head.repo.fork }}
+
   # Build the docker image used by the tests.
   #
   # The default network in the Zebra config in the image is mainnet, unless a manually triggered
