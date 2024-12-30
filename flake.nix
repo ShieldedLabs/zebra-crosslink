@@ -1,72 +1,199 @@
 {
+  description = "The zebra zcash node binaries and crates";
+
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+
+    crane.url = "github:ipetkov/crane";
+
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.rust-analyzer-src.follows = "";
+    };
+
     flake-utils.url = "github:numtide/flake-utils";
+
+    advisory-db = {
+      url = "github:rustsec/advisory-db";
+      flake = false;
+    };
   };
-  outputs = { self, nixpkgs, flake-utils }: (
-    flake-utils.lib.eachDefaultSystem (
-      system: (
-        let
-          pname = "zebra-crosslink";
 
-          # Use the version out of `zebrad`'s package metadata.
-          version = (
-            let
-              inherit (builtins) readFile fromTOML;
-              cargoToml = fromTOML (readFile ./zebrad/Cargo.toml);
-            in
-              cargoToml.package.version
-          );
+  outputs = { self, nixpkgs, crane, fenix, flake-utils, advisory-db, ... }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
 
-          # We use standard nixpkgs-unstable:
-          overlays = [];
-          pkgs = import nixpkgs {
-            inherit system overlays;
-          };
+        inherit (pkgs) lib;
 
-          # Import nix-specific plumbing:
-          inherit (pkgs)
-            mkShell
-            writeScript
-          ;
+        # We use the latest nixpkgs `libclang`:
+        inherit (pkgs.llvmPackages)
+          libclang
+        ;
 
-          # We use the latest `libclang`:
-          inherit (pkgs.llvmPackages)
-            libclang
-          ;
+        craneLib = crane.mkLib pkgs;
+        src = craneLib.cleanCargoSource ./.;
 
-          # Native (non-cargo) dependencies which only need to be present during builds:
+        # Common arguments can be set here to avoid repeating them later
+        commonArgs = {
+          inherit src;
+          strictDeps = true;
+
           nativeBuildInputs = with pkgs; [
             pkg-config
             protobuf
           ];
 
-          # Native (non-cargo) dependencies which need to be present during build- & run- times:
           buildInputs = with pkgs; [
             libclang
             rocksdb
           ];
 
-          # In `nix develop` mode, we have to explicitly make `cargo` available (in `nix build` time the `rustPlatform` nix API manages rust builds):
-          devShellInputs = with pkgs; [
-            cargo
-            cargo-nextest
+          # Additional environment variables can be set directly
+          # MY_CUSTOM_VAR = "some value";
+        };
+
+        craneLibLLvmTools = craneLib.overrideToolchain
+          (fenix.packages.${system}.complete.withComponents [
+            "cargo"
+            "llvm-tools"
+            "rustc"
+          ]);
+
+        # Build *just* the cargo dependencies (of the entire workspace),
+        # so we can reuse all of that work (e.g. via cachix) when running in CI
+        # It is *highly* recommended to use something like cargo-hakari to avoid
+        # cache misses when building individual top-level-crates
+        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+
+        individualCrateArgs = commonArgs // {
+          inherit cargoArtifacts;
+          inherit (craneLib.crateNameFromCargoToml { inherit src; }) version;
+          # NB: we disable tests since we'll run them all via cargo-nextest
+          doCheck = false;
+        };
+
+        fileSetForCrate = crate: lib.fileset.toSource {
+          root = ./.;
+          fileset = lib.fileset.unions [
+            ./Cargo.toml
+            ./Cargo.lock
+            (craneLib.fileset.commonCargoSources crate)
           ];
-        in {
-          packages.default = abort "`nix build` not yet implemented";
+        };
 
-          # The `nix develop` shell:
-          # - Uses `clang` for C compiler.
-          # - Includes `cargo` plus all `nativeBuildOutputs`.
-          # - Sets `LIBCLANG_PATH` explicitly.
-          devShells.default = (mkShell.override { stdenv = pkgs.llvmPackages.stdenv; }) {
-            inherit buildInputs;
-            nativeBuildInputs = nativeBuildInputs ++ devShellInputs;
+        # Build the top-level crates of the workspace as individual derivations.
+        # This allows consumers to only depend on (and build) only what they need.
+        # Though it is possible to build the entire workspace as a single derivation,
+        # so this is left up to you on how to organize things
+        #
+        # Note that the cargo workspace must define `workspace.members` using wildcards,
+        # otherwise, omitting a crate (like we do below) will result in errors since
+        # cargo won't be able to find the sources for all members.
+        zebrad = craneLib.buildPackage (individualCrateArgs // {
+          pname = "zebrad";
+          cargoExtraArgs = "-p zebrad";
+          src = fileSetForCrate ./zebrad;
+        });
+      in
+      {
+        checks = {
+          # Build the crates as part of `nix flake check` for convenience
+          inherit zebrad;
 
-            LIBCLANG_PATH="${libclang.lib}/lib";
+          # Run clippy (and deny all warnings) on the workspace source,
+          # again, reusing the dependency artifacts from above.
+          #
+          # Note that this is done as a separate derivation so that
+          # we can block the CI if there are issues here, but not
+          # prevent downstream consumers from building our crate by itself.
+          my-workspace-clippy = craneLib.cargoClippy (commonArgs // {
+            inherit cargoArtifacts;
+            cargoClippyExtraArgs = "--all-targets -- --deny warnings";
+          });
+
+          my-workspace-doc = craneLib.cargoDoc (commonArgs // {
+            inherit cargoArtifacts;
+          });
+
+          # Check formatting
+          my-workspace-fmt = craneLib.cargoFmt {
+            inherit src;
           };
-        }
-      )
-    )
-  );
+
+          my-workspace-toml-fmt = craneLib.taploFmt {
+            src = pkgs.lib.sources.sourceFilesBySuffices src [ ".toml" ];
+            # taplo arguments can be further customized below as needed
+            # taploExtraArgs = "--config ./taplo.toml";
+          };
+
+          # Audit dependencies
+          my-workspace-audit = craneLib.cargoAudit {
+            inherit src advisory-db;
+          };
+
+          # Audit licenses
+          my-workspace-deny = craneLib.cargoDeny {
+            inherit src;
+          };
+
+          # Run tests with cargo-nextest
+          # Consider setting `doCheck = false` on other crate derivations
+          # if you do not want the tests to run twice
+          my-workspace-nextest = craneLib.cargoNextest (commonArgs // {
+            inherit cargoArtifacts;
+            partitions = 1;
+            partitionType = "count";
+          });
+
+          # Ensure that cargo-hakari is up to date
+          my-workspace-hakari = craneLib.mkCargoDerivation {
+            inherit src;
+            pname = "my-workspace-hakari";
+            cargoArtifacts = null;
+            doInstallCargoArtifacts = false;
+
+            buildPhaseCargoCommand = ''
+              cargo hakari generate --diff  # workspace-hack Cargo.toml is up-to-date
+              cargo hakari manage-deps --dry-run  # all workspace crates depend on workspace-hack
+              cargo hakari verify
+            '';
+
+            nativeBuildInputs = [
+              pkgs.cargo-hakari
+            ];
+          };
+        };
+
+        packages = {
+          inherit zebrad;
+
+          default = zebrad;
+        } // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
+          my-workspace-llvm-coverage = craneLibLLvmTools.cargoLlvmCov (commonArgs // {
+            inherit cargoArtifacts;
+          });
+        };
+
+        apps = {
+          zebrad = flake-utils.lib.mkApp {
+            drv = zebrad;
+          };
+        };
+
+        devShells.default = craneLib.devShell {
+          # Inherit inputs from checks.
+          checks = self.checks.${system};
+
+          # Additional dev-shell environment variables can be set directly
+          # MY_CUSTOM_DEVELOPMENT_VAR = "something else";
+
+          # Extra inputs can be added here; cargo and rustc are provided by default.
+          packages = [
+            pkgs.cargo-hakari
+          ];
+        };
+      });
 }
+
