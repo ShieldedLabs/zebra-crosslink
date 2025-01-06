@@ -30,28 +30,25 @@
         # Print out a JSON serialization of the argument as a stderr diagnostic:
         traceJson = lib.debug.traceValFn builtins.toJSON;
 
+        craneLib = crane.mkLib pkgs;
+
         # We use the latest nixpkgs `libclang`:
         inherit (pkgs.llvmPackages)
           libclang
         ;
 
-        craneLib = crane.mkLib pkgs;
-
-        craneLibLLvmTools = craneLib.overrideToolchain
-          (fenix.packages.${system}.complete.withComponents [
-            "cargo"
-            "llvm-tools"
-            "rustc"
-          ]);
-
-        src = craneLib.cleanCargoSource ./.;
+        src = lib.sources.cleanSource ./.;
 
         # Common arguments can be set here to avoid repeating them later
         commonArgs = {
           inherit src;
+
           strictDeps = true;
           # NB: we disable tests since we'll run them all via cargo-nextest
           doCheck = false;
+
+          # Use the clang stdenv:
+          inherit (pkgs.llvmPackages) stdenv;
 
           nativeBuildInputs = with pkgs; [
             pkg-config
@@ -69,8 +66,6 @@
 
         # Build *just* the cargo dependencies (of the entire workspace),
         # so we can reuse all of that work (e.g. via cachix) when running in CI
-        # It is *highly* recommended to use something like cargo-hakari to avoid
-        # cache misses when building individual top-level-crates
         cargoArtifacts = craneLib.buildDepsOnly (commonArgs // {
           pname = "zebrad-workspace-dependency-artifacts";
           version = "0.0.0";
@@ -84,15 +79,6 @@
                 pname
                 version
               ;
-
-              src = lib.fileset.toSource {
-                root = ./.;
-                fileset = lib.fileset.unions [
-                  ./Cargo.toml
-                  ./Cargo.lock
-                  (craneLib.fileset.commonCargoSources crate)
-                ];
-              };
 
               # BUG 1: We should not need this on the assumption that crane already knows the package from pname?
               # BUG 2: crate is a path, not a string.
@@ -162,34 +148,12 @@
             partitions = 1;
             partitionType = "count";
           });
-
-          # Ensure that cargo-hakari is up to date
-          my-workspace-hakari = craneLib.mkCargoDerivation {
-            inherit src;
-            pname = "my-workspace-hakari";
-            cargoArtifacts = null;
-            doInstallCargoArtifacts = false;
-
-            buildPhaseCargoCommand = ''
-              cargo hakari generate --diff  # workspace-hack Cargo.toml is up-to-date
-              cargo hakari manage-deps --dry-run  # all workspace crates depend on workspace-hack
-              cargo hakari verify
-            '';
-
-            nativeBuildInputs = [
-              pkgs.cargo-hakari
-            ];
-          };
         };
 
         packages = {
           inherit zebrad;
 
           default = zebrad;
-        } // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
-          my-workspace-llvm-coverage = craneLibLLvmTools.cargoLlvmCov (commonArgs // {
-            inherit cargoArtifacts;
-          });
         };
 
         apps = {
@@ -207,7 +171,6 @@
 
           # Extra inputs can be added here; cargo and rustc are provided by default.
           packages = [
-            pkgs.cargo-hakari
           ];
         };
       });
