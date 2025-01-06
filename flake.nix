@@ -27,18 +27,31 @@
 
         inherit (pkgs) lib;
 
+        # Print out a JSON serialization of the argument as a stderr diagnostic:
+        traceJson = lib.debug.traceValFn builtins.toJSON;
+
         # We use the latest nixpkgs `libclang`:
         inherit (pkgs.llvmPackages)
           libclang
         ;
 
         craneLib = crane.mkLib pkgs;
+
+        craneLibLLvmTools = craneLib.overrideToolchain
+          (fenix.packages.${system}.complete.withComponents [
+            "cargo"
+            "llvm-tools"
+            "rustc"
+          ]);
+
         src = craneLib.cleanCargoSource ./.;
 
         # Common arguments can be set here to avoid repeating them later
         commonArgs = {
           inherit src;
           strictDeps = true;
+          # NB: we disable tests since we'll run them all via cargo-nextest
+          doCheck = false;
 
           nativeBuildInputs = with pkgs; [
             pkg-config
@@ -54,34 +67,41 @@
           # MY_CUSTOM_VAR = "some value";
         };
 
-        craneLibLLvmTools = craneLib.overrideToolchain
-          (fenix.packages.${system}.complete.withComponents [
-            "cargo"
-            "llvm-tools"
-            "rustc"
-          ]);
-
         # Build *just* the cargo dependencies (of the entire workspace),
         # so we can reuse all of that work (e.g. via cachix) when running in CI
         # It is *highly* recommended to use something like cargo-hakari to avoid
         # cache misses when building individual top-level-crates
-        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+        cargoArtifacts = craneLib.buildDepsOnly (commonArgs // {
+          pname = "zebrad-workspace-dependency-artifacts";
+          version = "0.0.0";
+        });
 
-        individualCrateArgs = commonArgs // {
-          inherit cargoArtifacts;
-          inherit (craneLib.crateNameFromCargoToml { inherit src; }) version;
-          # NB: we disable tests since we'll run them all via cargo-nextest
-          doCheck = false;
-        };
+        individualCrateArgs = (crate:
+          let
+            result = commonArgs // {
+              inherit cargoArtifacts;
+              inherit (traceJson (craneLib.crateNameFromCargoToml { cargoToml = traceJson (crate + "/Cargo.toml"); }))
+                pname
+                version
+              ;
 
-        fileSetForCrate = crate: lib.fileset.toSource {
-          root = ./.;
-          fileset = lib.fileset.unions [
-            ./Cargo.toml
-            ./Cargo.lock
-            (craneLib.fileset.commonCargoSources crate)
-          ];
-        };
+              src = lib.fileset.toSource {
+                root = ./.;
+                fileset = lib.fileset.unions [
+                  ./Cargo.toml
+                  ./Cargo.lock
+                  (craneLib.fileset.commonCargoSources crate)
+                ];
+              };
+
+              # BUG 1: We should not need this on the assumption that crane already knows the package from pname?
+              # BUG 2: crate is a path, not a string.
+              # cargoExtraArgs = "-p ${crate}";
+            };
+          in
+            assert builtins.isPath crate;
+            traceJson result
+        );
 
         # Build the top-level crates of the workspace as individual derivations.
         # This allows consumers to only depend on (and build) only what they need.
@@ -91,11 +111,7 @@
         # Note that the cargo workspace must define `workspace.members` using wildcards,
         # otherwise, omitting a crate (like we do below) will result in errors since
         # cargo won't be able to find the sources for all members.
-        zebrad = craneLib.buildPackage (individualCrateArgs // {
-          pname = "zebrad";
-          cargoExtraArgs = "-p zebrad";
-          src = fileSetForCrate ./zebrad;
-        });
+        zebrad = craneLib.buildPackage (individualCrateArgs ./zebrad);
       in
       {
         checks = {
