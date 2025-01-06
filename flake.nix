@@ -64,7 +64,7 @@
           ];
 
           # Additional environment variables can be set directly
-          # MY_CUSTOM_VAR = "some value";
+          LIBCLANG_PATH="${libclang.lib}/lib";
         };
 
         # Build *just* the cargo dependencies (of the entire workspace),
