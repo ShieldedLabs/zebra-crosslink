@@ -4,6 +4,8 @@
 .zebra-state/
 # Nix configs
 shell.nix
+# Nix build results:
+result
 # Docker compose env files
 *.env
 
