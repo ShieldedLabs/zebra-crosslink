@@ -264,6 +264,7 @@ impl StartCmd {
                     user_agent(),
                     mempool.clone(),
                     read_only_state_service.clone(),
+                    //tfl_service.clone(),
                     block_verifier_router.clone(),
                     sync_status.clone(),
                     address_book.clone(),
@@ -331,6 +332,14 @@ impl StartCmd {
         let tx_gossip_task_handle = tokio::spawn(
             mempool::gossip_mempool_transaction_id(mempool_transaction_receiver, peer_set.clone())
                 .in_current_span(),
+        );
+        info!("spawning tfl service task");
+        let tfl_service_task_handle : tokio::task::JoinHandle<Result<(), crate::BoxError>> = tokio::spawn(async {
+                loop {
+                    println!("TFL!!!");
+                    tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
+                }
+            }
         );
 
         info!("spawning delete old databases task");
@@ -436,6 +445,7 @@ impl StartCmd {
         pin!(mempool_crawler_task_handle);
         pin!(mempool_queue_checker_task_handle);
         pin!(tx_gossip_task_handle);
+        pin!(tfl_service_task_handle);
         pin!(progress_task_handle);
         pin!(end_of_support_task_handle);
         pin!(miner_task_handle);
@@ -501,6 +511,11 @@ impl StartCmd {
                     .map(|_| info!("transaction gossip task exited"))
                     .map_err(|e| eyre!(e)),
 
+                tfl_service_result = &mut tfl_service_task_handle => tfl_service_result
+                    .expect("unexpected panic in the tfl service task")
+                    .map(|_| info!("tfl service task exited"))
+                    .map_err(|e| eyre!(e)),
+
                 // The progress task runs forever, unless it panics.
                 // So we don't need to provide an exit status for it.
                 progress_result = &mut progress_task_handle => {
@@ -559,6 +574,7 @@ impl StartCmd {
         mempool_crawler_task_handle.abort();
         mempool_queue_checker_task_handle.abort();
         tx_gossip_task_handle.abort();
+        tfl_service_task_handle.abort();
         progress_task_handle.abort();
         end_of_support_task_handle.abort();
         miner_task_handle.abort();
