@@ -16,7 +16,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-xl
     name: Build and Test (Crosslink)
     steps:
     - uses: actions/checkout@v4
