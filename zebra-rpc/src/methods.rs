@@ -183,6 +183,9 @@ pub trait Rpc {
     #[method(name = "getblock")]
     async fn get_block(&self, hash_or_height: String, verbosity: Option<u8>) -> Result<GetBlock>;
 
+    #[method(name = "increment_tfl_int")]
+    async fn increment_tfl_int(&self);
+
     /// Returns the requested block header by hash or height, as a [`GetBlockHeader`] JSON string.
     /// If the block is not in Zebra's state,
     /// returns [error code `-8`.](https://github.com/zcash/zcash/issues/5758)
@@ -994,6 +997,10 @@ where
         } else {
             Err("invalid verbosity value").map_error(server::error::LegacyCode::InvalidParameter)
         }
+    }
+
+    async fn increment_tfl_int(&self) {
+        println!("Hello RPC!!!");
     }
 
     async fn get_block_header(
