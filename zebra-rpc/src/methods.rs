@@ -183,6 +183,9 @@ pub trait Rpc {
     #[method(name = "getblock")]
     async fn get_block(&self, hash_or_height: String, verbosity: Option<u8>) -> Result<GetBlock>;
 
+    #[method(name = "increment_tfl_int")]
+    async fn increment_tfl_int(&self) -> Option<u64>;
+
     /// Returns the requested block header by hash or height, as a [`GetBlockHeader`] JSON string.
     /// If the block is not in Zebra's state,
     /// returns [error code `-8`.](https://github.com/zcash/zcash/issues/5758)
@@ -362,7 +365,7 @@ pub trait Rpc {
 
 /// RPC method implementations.
 #[derive(Clone)]
-pub struct RpcImpl<Mempool, State, Tip, AddressBook>
+pub struct RpcImpl<Mempool, TFLService, State, Tip, AddressBook>
 where
     Mempool: Service<
             mempool::Request,
@@ -373,6 +376,15 @@ where
         + Sync
         + 'static,
     Mempool::Future: Send,
+    TFLService: Service<
+            (),
+            Response = u64,
+            Error = zebra_node_services::BoxError,
+        > + Clone
+        + Send
+        + Sync
+        + 'static,
+    TFLService::Future: Send,
     State: Service<
             zebra_state::ReadRequest,
             Response = zebra_state::ReadResponse,
@@ -409,6 +421,8 @@ where
     /// A handle to the mempool service.
     mempool: Mempool,
 
+    tfl_service: TFLService,
+
     /// A handle to the state service.
     state: State,
 
@@ -430,7 +444,7 @@ where
 /// A type alias for the last event logged by the server.
 pub type LoggedLastEvent = watch::Receiver<Option<(String, tracing::Level, chrono::DateTime<Utc>)>>;
 
-impl<Mempool, State, Tip, AddressBook> Debug for RpcImpl<Mempool, State, Tip, AddressBook>
+impl<Mempool, TFLService, State, Tip, AddressBook> Debug for RpcImpl<Mempool, TFLService, State, Tip, AddressBook>
 where
     Mempool: Service<
             mempool::Request,
@@ -441,6 +455,15 @@ where
         + Sync
         + 'static,
     Mempool::Future: Send,
+    TFLService: Service<
+            (),
+            Response = u64,
+            Error = zebra_node_services::BoxError,
+        > + Clone
+        + Send
+        + Sync
+        + 'static,
+    TFLService::Future: Send,
     State: Service<
             zebra_state::ReadRequest,
             Response = zebra_state::ReadResponse,
@@ -465,7 +488,7 @@ where
     }
 }
 
-impl<Mempool, State, Tip, AddressBook> RpcImpl<Mempool, State, Tip, AddressBook>
+impl<Mempool, TFLService, State, Tip, AddressBook> RpcImpl<Mempool, TFLService, State, Tip, AddressBook>
 where
     Mempool: Service<
             mempool::Request,
@@ -476,6 +499,15 @@ where
         + Sync
         + 'static,
     Mempool::Future: Send,
+    TFLService: Service<
+            (),
+            Response = u64,
+            Error = zebra_node_services::BoxError,
+        > + Clone
+        + Send
+        + Sync
+        + 'static,
+    TFLService::Future: Send,
     State: Service<
             zebra_state::ReadRequest,
             Response = zebra_state::ReadResponse,
@@ -500,6 +532,7 @@ where
         debug_force_finished_sync: bool,
         debug_like_zcashd: bool,
         mempool: Mempool,
+        tfl_service: TFLService,
         state: State,
         latest_chain_tip: Tip,
         address_book: AddressBook,
@@ -526,6 +559,7 @@ where
             debug_force_finished_sync,
             debug_like_zcashd,
             mempool: mempool.clone(),
+            tfl_service: tfl_service,
             state: state.clone(),
             latest_chain_tip: latest_chain_tip.clone(),
             queue_sender,
@@ -545,7 +579,7 @@ where
 }
 
 #[async_trait]
-impl<Mempool, State, Tip, AddressBook> RpcServer for RpcImpl<Mempool, State, Tip, AddressBook>
+impl<Mempool, TFLService, State, Tip, AddressBook> RpcServer for RpcImpl<Mempool, TFLService, State, Tip, AddressBook>
 where
     Mempool: Service<
             mempool::Request,
@@ -556,6 +590,15 @@ where
         + Sync
         + 'static,
     Mempool::Future: Send,
+    TFLService: Service<
+            (),
+            Response = u64,
+            Error = zebra_node_services::BoxError,
+        > + Clone
+        + Send
+        + Sync
+        + 'static,
+    TFLService::Future: Send,
     State: Service<
             zebra_state::ReadRequest,
             Response = zebra_state::ReadResponse,
@@ -994,6 +1037,10 @@ where
         } else {
             Err("invalid verbosity value").map_error(server::error::LegacyCode::InvalidParameter)
         }
+    }
+
+    async fn increment_tfl_int(&self) -> Option<u64> {
+        self.tfl_service.clone().ready().await.unwrap().call(()).await.ok()
     }
 
     async fn get_block_header(

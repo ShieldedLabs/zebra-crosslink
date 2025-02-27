@@ -252,6 +252,32 @@ impl StartCmd {
         // Create a channel to send mined blocks to the gossip task
         let submit_block_channel = SubmitBlockChannel::new();
 
+
+        info!("spawning tfl service task");
+
+        let tfl = TFL {
+            val: Arc::new(Mutex::new(0))
+        };
+        let tfl2 = tfl.clone();
+
+        let tfl_service_task_handle : tokio::task::JoinHandle<Result<(), crate::BoxError>> = tokio::spawn(
+            async move {
+                loop {
+                    println!("TFL {}!!!", *tfl2.val.lock().await);
+                    tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
+                }
+            }
+        );
+
+        let tfl_service = BoxService::new(tfl);
+        let mut tfl_service = ServiceBuilder::new()
+            .buffer(1)
+            .service(tfl_service);
+        { // TODO: remove!
+            let exp_val = tfl_service.ready().await.unwrap().call(()).await;
+            println!("exp_val: {}", exp_val.unwrap_or(9999999));
+        }
+
         // Launch RPC server
         let (rpc_task_handle, mut rpc_tx_queue_task_handle) =
             if let Some(listen_addr) = config.rpc.listen_addr {
@@ -263,6 +289,7 @@ impl StartCmd {
                     build_version(),
                     user_agent(),
                     mempool.clone(),
+                    tfl_service.clone(),
                     read_only_state_service.clone(),
                     block_verifier_router.clone(),
                     sync_status.clone(),
@@ -426,6 +453,12 @@ impl StartCmd {
 
         info!("spawned initial Zebra tasks");
 
+        { // TODO: remove!
+            let exp_val = tfl_service.ready().await.unwrap().call(()).await;
+            println!("exp_val: {}", exp_val.unwrap_or(9999999));
+        }
+
+
         // TODO: put tasks into an ongoing FuturesUnordered and a startup FuturesUnordered?
 
         // ongoing tasks
@@ -436,6 +469,7 @@ impl StartCmd {
         pin!(mempool_crawler_task_handle);
         pin!(mempool_queue_checker_task_handle);
         pin!(tx_gossip_task_handle);
+        pin!(tfl_service_task_handle);
         pin!(progress_task_handle);
         pin!(end_of_support_task_handle);
         pin!(miner_task_handle);
@@ -501,6 +535,11 @@ impl StartCmd {
                     .map(|_| info!("transaction gossip task exited"))
                     .map_err(|e| eyre!(e)),
 
+                tfl_service_result = &mut tfl_service_task_handle => tfl_service_result
+                    .expect("unexpected panic in the tfl service task")
+                    .map(|_| info!("tfl service task exited"))
+                    .map_err(|e| eyre!(e)),
+
                 // The progress task runs forever, unless it panics.
                 // So we don't need to provide an exit status for it.
                 progress_result = &mut progress_task_handle => {
@@ -559,6 +598,7 @@ impl StartCmd {
         mempool_crawler_task_handle.abort();
         mempool_queue_checker_task_handle.abort();
         tx_gossip_task_handle.abort();
+        tfl_service_task_handle.abort();
         progress_task_handle.abort();
         end_of_support_task_handle.abort();
         miner_task_handle.abort();
@@ -622,5 +662,40 @@ impl config::Override<ZebradConfig> for StartCmd {
         }
 
         Ok(config)
+    }
+}
+
+use std::pin::Pin;
+use std::future::Future;
+use std::task::Context;
+use std::task::Poll;
+use tower::Service;
+use tokio::sync::Mutex;
+
+#[derive(Clone)]
+struct TFL {
+    val: Arc<Mutex<u64>>,
+}
+
+impl Service<()> for TFL {
+    type Response = u64;
+    type Error    = FrameworkError; // TODO: rethink error type
+    type Future   = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, _req: ()) -> Self::Future {
+        let val = self.val.clone();
+        let fut = async move {
+            let mut guard = val.lock().await;
+            *guard += 1;
+            let val = *guard;
+            Ok(val)
+        };
+
+        // Return the response as an immediate future
+        Box::pin(fut)
     }
 }
