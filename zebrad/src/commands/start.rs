@@ -252,6 +252,32 @@ impl StartCmd {
         // Create a channel to send mined blocks to the gossip task
         let submit_block_channel = SubmitBlockChannel::new();
 
+
+        info!("spawning tfl service task");
+
+        let tfl = TFL {
+            val: Arc::new(Mutex::new(0))
+        };
+        let tfl2 = tfl.clone();
+
+        let tfl_service_task_handle : tokio::task::JoinHandle<Result<(), crate::BoxError>> = tokio::spawn(
+            async move {
+                loop {
+                    println!("TFL {}!!!", *tfl2.val.lock().await);
+                    tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
+                }
+            }
+        );
+
+        let tfl_service = BoxService::new(tfl);
+        let mut tfl_service = ServiceBuilder::new()
+            .buffer(1)
+            .service(tfl_service);
+        { // TODO: remove!
+            let exp_val = tfl_service.ready().await.unwrap().call(()).await;
+            println!("exp_val: {}", exp_val.unwrap_or(9999999));
+        }
+
         // Launch RPC server
         let (rpc_task_handle, mut rpc_tx_queue_task_handle) =
             if let Some(listen_addr) = config.rpc.listen_addr {
@@ -263,8 +289,8 @@ impl StartCmd {
                     build_version(),
                     user_agent(),
                     mempool.clone(),
+                    tfl_service.clone(),
                     read_only_state_service.clone(),
-                    //tfl_service.clone(),
                     block_verifier_router.clone(),
                     sync_status.clone(),
                     address_book.clone(),
@@ -333,29 +359,6 @@ impl StartCmd {
             mempool::gossip_mempool_transaction_id(mempool_transaction_receiver, peer_set.clone())
                 .in_current_span(),
         );
-
-
-        info!("spawning tfl service task");
-
-        let tfl = TFL {
-            val: Arc::new(Mutex::new(0))
-        };
-        let tfl2 = tfl.clone();
-
-        let tfl_service_task_handle : tokio::task::JoinHandle<Result<(), crate::BoxError>> = tokio::spawn(
-            async move {
-                loop {
-                    println!("TFL {}!!!", *tfl2.val.lock().await);
-                    tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
-                }
-            }
-        );
-
-        let mut tfl_service = BoxService::new(tfl);
-        { // TODO: remove!
-            let exp_val = tfl_service.call(()).await;
-            println!("exp_val: {}", exp_val.unwrap_or(9999999));
-        }
 
         info!("spawning delete old databases task");
         let mut old_databases_task_handle = zebra_state::check_and_delete_old_state_databases(
@@ -451,7 +454,7 @@ impl StartCmd {
         info!("spawned initial Zebra tasks");
 
         { // TODO: remove!
-            let exp_val = tfl_service.call(()).await;
+            let exp_val = tfl_service.ready().await.unwrap().call(()).await;
             println!("exp_val: {}", exp_val.unwrap_or(9999999));
         }
 
