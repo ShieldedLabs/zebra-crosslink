@@ -333,14 +333,29 @@ impl StartCmd {
             mempool::gossip_mempool_transaction_id(mempool_transaction_receiver, peer_set.clone())
                 .in_current_span(),
         );
+
+
         info!("spawning tfl service task");
-        let tfl_service_task_handle : tokio::task::JoinHandle<Result<(), crate::BoxError>> = tokio::spawn(async {
+
+        let tfl = TFL {
+            val: Arc::new(Mutex::new(0))
+        };
+        let tfl2 = tfl.clone();
+
+        let tfl_service_task_handle : tokio::task::JoinHandle<Result<(), crate::BoxError>> = tokio::spawn(
+            async move {
                 loop {
-                    println!("TFL!!!");
+                    println!("TFL {}!!!", *tfl2.val.lock().await);
                     tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
                 }
             }
         );
+
+        let mut tfl_service = BoxService::new(tfl);
+        { // TODO: remove!
+            let exp_val = tfl_service.call(()).await;
+            println!("exp_val: {}", exp_val.unwrap_or(9999999));
+        }
 
         info!("spawning delete old databases task");
         let mut old_databases_task_handle = zebra_state::check_and_delete_old_state_databases(
@@ -434,6 +449,12 @@ impl StartCmd {
             tokio::spawn(std::future::pending().in_current_span());
 
         info!("spawned initial Zebra tasks");
+
+        { // TODO: remove!
+            let exp_val = tfl_service.call(()).await;
+            println!("exp_val: {}", exp_val.unwrap_or(9999999));
+        }
+
 
         // TODO: put tasks into an ongoing FuturesUnordered and a startup FuturesUnordered?
 
@@ -638,5 +659,40 @@ impl config::Override<ZebradConfig> for StartCmd {
         }
 
         Ok(config)
+    }
+}
+
+use std::pin::Pin;
+use std::future::Future;
+use std::task::Context;
+use std::task::Poll;
+use tower::Service;
+use tokio::sync::Mutex;
+
+#[derive(Clone)]
+struct TFL {
+    val: Arc<Mutex<u64>>,
+}
+
+impl Service<()> for TFL {
+    type Response = u64;
+    type Error    = FrameworkError; // TODO: rethink error type
+    type Future   = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, _req: ()) -> Self::Future {
+        let val = self.val.clone();
+        let fut = async move {
+            let mut guard = val.lock().await;
+            *guard += 1;
+            let val = *guard;
+            Ok(val)
+        };
+
+        // Return the response as an immediate future
+        Box::pin(fut)
     }
 }
