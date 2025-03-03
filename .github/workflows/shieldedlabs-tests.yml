@@ -16,7 +16,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-xl
     name: Build and Test (Crosslink)
     steps:
     - uses: actions/checkout@v4
@@ -27,7 +27,9 @@ jobs:
     - run: rustup toolchain install stable --profile minimal
     - uses: Swatinem/rust-cache@v2
     - name: Static Analysis
-      run: cargo fmt --check
+      run: |
+        cargo fmt --check
+        cargo clippy
     - name: Ensure Crosslink docs generate
       run: cd zebra-crosslink && cargo doc --lib
     - name: Ensure all docs generate
