@@ -47,7 +47,7 @@ proptest! {
     fn mempool_receives_raw_tx(transaction in any::<Transaction>(), network in any::<Network>()) {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
         tokio::time::pause();
@@ -92,7 +92,7 @@ proptest! {
     fn mempool_errors_are_forwarded(transaction in any::<Transaction>(), network in any::<Network>()) {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
         tokio::time::pause();
@@ -146,7 +146,7 @@ proptest! {
     fn rejected_txs_are_reported(transaction in any::<Transaction>(), network in any::<Network>()) {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
         tokio::time::pause();
@@ -179,7 +179,7 @@ proptest! {
     fn non_hex_string_is_error(non_hex_string in ".*[^0-9A-Fa-f].*", network in any::<Network>()) {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
         tokio::time::pause();
@@ -208,7 +208,7 @@ proptest! {
     fn invalid_tx_results_in_an_error(random_bytes in any::<Vec<u8>>(), network in any::<Network>()) {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
         tokio::time::pause();
@@ -240,7 +240,7 @@ proptest! {
                                                verbose in any::<Option<bool>>()) {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
         tokio::time::pause();
@@ -344,7 +344,7 @@ proptest! {
                                          network: Network) {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
         tokio::time::pause();
@@ -386,7 +386,7 @@ proptest! {
     fn get_blockchain_info_response_without_a_chain_tip(network in any::<Network>()) {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) = mock_services(network.clone(), NoChainTip);
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) = mock_services(network.clone(), NoChainTip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
         tokio::time::pause();
@@ -451,7 +451,7 @@ proptest! {
     ) {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) =
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) =
             mock_services(network.clone(), NoChainTip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
@@ -552,7 +552,7 @@ proptest! {
     fn get_blockchain_info_returns_genesis_when_tip_pool_fails(network in any::<Network>()) {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) = mock_services(network.clone(), NoChainTip);
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) = mock_services(network.clone(), NoChainTip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
         tokio::time::pause();
@@ -643,7 +643,7 @@ proptest! {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
         let (chain_tip, _mock_chain_tip_sender) = MockChainTip::new();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) = mock_services(network, chain_tip);
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) = mock_services(network, chain_tip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
         tokio::time::pause();
@@ -700,7 +700,7 @@ proptest! {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
         let (chain_tip, _mock_chain_tip_sender) = MockChainTip::new();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) = mock_services(network, chain_tip);
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) = mock_services(network, chain_tip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
         tokio::time::pause();
@@ -736,7 +736,7 @@ proptest! {
     fn rpc_queue_main_loop(tx in any::<Transaction>(), network in any::<Network>()) {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
         tokio::time::pause();
@@ -814,7 +814,7 @@ proptest! {
                                                network in any::<Network>()) {
         let (runtime, _init_guard) = zebra_test::init_async();
         let _guard = runtime.enter();
-        let (mut mempool, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
+        let (mut mempool, _crosslink, mut state, rpc, mempool_tx_queue) = mock_services(network, NoChainTip);
 
         // CORRECTNESS: Nothing in this test depends on real time, so we can speed it up.
         tokio::time::pause();
@@ -950,6 +950,11 @@ fn mock_services<Tip>(
         zebra_test::mock_service::PropTestAssertion,
     >,
     zebra_test::mock_service::MockService<
+        zebra_crosslink::service::TFLServiceRequest,
+        zebra_crosslink::service::TFLServiceResponse,
+        zebra_test::mock_service::PropTestAssertion,
+    >,
+    zebra_test::mock_service::MockService<
         zebra_state::ReadRequest,
         zebra_state::ReadResponse,
         zebra_test::mock_service::PropTestAssertion,
@@ -958,6 +963,11 @@ fn mock_services<Tip>(
         zebra_test::mock_service::MockService<
             zebra_node_services::mempool::Request,
             zebra_node_services::mempool::Response,
+            zebra_test::mock_service::PropTestAssertion,
+        >,
+        zebra_test::mock_service::MockService<
+            zebra_crosslink::service::TFLServiceRequest,
+            zebra_crosslink::service::TFLServiceResponse,
             zebra_test::mock_service::PropTestAssertion,
         >,
         tower::buffer::Buffer<
@@ -977,6 +987,12 @@ where
     Tip: ChainTip + Clone + Send + Sync + 'static,
 {
     let mempool = MockService::build().for_prop_tests();
+    let crosslink = MockService::build().for_prop_tests();
+    // let typed_crosslink: MockService<
+    //     zebra_crosslink::service::TFLServiceRequest,
+    //     zebra_crosslink::service::TFLServiceResponse,
+    //     _
+    // > = crosslink;
     let state = MockService::build().for_prop_tests();
 
     let (_tx, rx) = tokio::sync::watch::channel(None);
@@ -987,11 +1003,12 @@ where
         false,
         true,
         mempool.clone(),
+        crosslink.clone(),
         Buffer::new(state.clone(), 1),
         chain_tip,
         MockAddressBookPeers::new(vec![]),
         rx,
     );
 
-    (mempool, state, rpc, mempool_tx_queue)
+    (mempool, crosslink, state, rpc, mempool_tx_queue)
 }

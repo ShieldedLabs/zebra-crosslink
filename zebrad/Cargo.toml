@@ -165,6 +165,7 @@ zebra-network = { path = "../zebra-network", version = "1.0.0-beta.45" }
 zebra-node-services = { path = "../zebra-node-services", version = "1.0.0-beta.45", features = ["rpc-client"] }
 zebra-rpc = { path = "../zebra-rpc", version = "1.0.0-beta.45" }
 zebra-state = { path = "../zebra-state", version = "1.0.0-beta.45" }
+zebra-crosslink = { path = "../zebra-crosslink", version = "1.0.0-beta.45" }
 
 # Required for crates.io publishing, but it's only used in tests
 zebra-utils = { path = "../zebra-utils", version = "1.0.0-beta.45", optional = true }

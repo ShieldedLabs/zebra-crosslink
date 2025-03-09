@@ -15,26 +15,37 @@ env:
   CARGO_INCREMENTAL: ${{ vars.CARGO_INCREMENTAL }} # defaults to 0
 
 jobs:
+  test-no-run:
+    name: Crosslink Tests
+    runs-on: ubuntu-latest-xl
+    steps:
+      - uses: actions/checkout@v4
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: protobuf-compiler
+          version: 1.0
+      - run: rustup toolchain install stable --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      - name: Build Test Binary
+        run: cargo test --locked --workspace crosslink
+      - name: Regression tests # mostly
+        if: github.ref == 'refs/heads/main'
+        run: cargo test
+
   build:
     runs-on: ubuntu-latest
-    name: Build and Test (Crosslink)
+    name: Static Analysis and Docs
     steps:
-    - uses: actions/checkout@v4
-    - uses: awalsh128/cache-apt-pkgs-action@latest
-      with:
-        packages: protobuf-compiler
-        version: 1.0
-    - run: rustup toolchain install stable --profile minimal
-    - uses: Swatinem/rust-cache@v2
-    - name: Static Analysis
-      run: cargo fmt --check
-    - name: Ensure Crosslink docs generate
-      run: cd zebra-crosslink && cargo doc --lib
-    - name: Ensure all docs generate
-      if: github.ref == 'refs/heads/main'
-      run: cargo doc
-    - name: Run Crosslink Tests
-      run: cargo test --test crosslink*
-    - name: Regression tests # mostly
-      if: github.ref == 'refs/heads/main'
-      run: cargo test
+      - uses: actions/checkout@v4
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: protobuf-compiler
+          version: 1.0
+      - run: rustup toolchain install stable --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - name: Ensure Crosslink docs generate
+        run: cd zebra-crosslink && cargo doc --lib
+      - name: Ensure all docs generate
+        if: github.ref == 'refs/heads/main'
+        run: cargo doc
