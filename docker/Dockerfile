@@ -91,8 +91,6 @@ RUN addgroup --quiet --gid ${GID} ${USER} && \
 # Set the working directory for the build.
 WORKDIR ${HOME}
 
-# Build Zebra test binaries, but don't run them
-#
 # Leverage a cache mount to /usr/local/cargo/registry/
 # for downloaded dependencies, a cache mount to /usr/local/cargo/git/db
 # for git repository dependencies, and a cache mount to ${HOME}/target/ for
