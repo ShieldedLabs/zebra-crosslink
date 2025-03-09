@@ -82,6 +82,7 @@ use zebra_chain::{
         equihash::Solution,
     },
 };
+<<<<<<< HEAD
 use zebra_consensus::{
     block_subsidy, funding_stream_address, funding_stream_values, miner_subsidy,
     ParameterCheckpoint, RouterError,
@@ -89,6 +90,12 @@ use zebra_consensus::{
 use zebra_crosslink::{
     service::{TFLServiceRequest, TFLServiceResponse},
     TFLBlockFinality, TFLRoster, TFLStaker,
+=======
+use zebra_consensus::ParameterCheckpoint;
+use zebra_crosslink::{
+    service::{TFLServiceRequest, TFLServiceResponse},
+    TFLBlockFinality,
+>>>>>>> 08b63c429 (fix: cargo fmt)
 };
 use zebra_network::address_book_peers::AddressBookPeers;
 use zebra_node_services::mempool;
