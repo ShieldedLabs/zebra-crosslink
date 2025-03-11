@@ -138,9 +138,14 @@ where
                 .name(&format!("{} batch", batch_kind))
                 .spawn(worker.run().instrument(span))
         };
+
+        #[cfg(tokio_unstable)]
+        batch.register_worker(worker_handle.expect("failed to spawn batch worker"));
+
         #[cfg(not(tokio_unstable))]
         let worker_handle = tokio::spawn(worker.run().instrument(span));
 
+        #[cfg(not(tokio_unstable))]
         batch.register_worker(worker_handle);
 
         batch
