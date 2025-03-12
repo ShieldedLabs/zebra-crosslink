@@ -318,8 +318,27 @@ jobs:
             sleep 2
           done
 
-          echo "Container not found after 60 seconds"
-          exit 1
+          MOUNT_FLAGS="--mount type=volume,volume-driver=local,volume-opt=device=/dev/$DISK_NAME,volume-opt=type=ext4,dst=${{ inputs.zebra_state_dir }}"
+
+          # Check if we need to mount for Lightwalletd state
+          # lightwalletd-full-sync reads Zebra and writes lwd, so it is handled specially.
+          if [[ "${{ inputs.needs_lwd_state }}" == "true" || "${{ inputs.test_id }}" == "lwd-full-sync" ]]; then
+            MOUNT_FLAGS="$MOUNT_FLAGS --mount type=volume,volume-driver=local,volume-opt=device=/dev/$DISK_NAME,volume-opt=type=ext4,dst=${{ inputs.lwd_state_dir }}"
+          fi
+
+          sudo docker run \
+          --name ${{ inputs.test_id }} \
+          --tty \
+          --detach \
+          ${{ inputs.test_variables }} \
+          -e RUST_LOG=${{ env.RUST_LOG }} \
+          -e RUST_BACKTRACE=${{ env.RUST_BACKTRACE }} \
+          -e RUST_LIB_BACKTRACE=${{ env.RUST_LIB_BACKTRACE }} \
+          -e COLORBT_SHOW_HIDDEN=${{ env.COLORBT_SHOW_HIDDEN }} \
+          -e CARGO_INCREMENTAL=${{ env.CARGO_INCREMENTAL }} \
+          ${MOUNT_FLAGS} \
+          ${{ vars.GAR_BASE }}/${{ vars.CI_IMAGE_NAME }}:sha-${{ env.GITHUB_SHA_SHORT }} \
+          '
 
       # Show debug logs if previous job failed
       - name: Show debug logs if previous job failed

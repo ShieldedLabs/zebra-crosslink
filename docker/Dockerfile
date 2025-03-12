@@ -53,8 +53,11 @@ ENV CARGO_TARGET_DIR=${CARGO_TARGET_DIR}
 ARG FEATURES
 ENV FEATURES=${FEATURES}
 
-# If this is not set, it must be an empty string, so Zebra can try an
-# alternative git commit source:
+ARG CARGO_INCREMENTAL
+ENV CARGO_INCREMENTAL=${CARGO_INCREMENTAL:-0}
+
+ARG SHORT_SHA
+# If this is not set, it must be an empty string, so Zebra can try an alternative git commit source:
 # https://github.com/ZcashFoundation/zebra/blob/9ebd56092bcdfc1a09062e15a0574c94af37f389/zebrad/src/application.rs#L179-L182
 ARG SHORT_SHA
 ENV SHORT_SHA=${SHORT_SHA:-}
@@ -80,16 +83,19 @@ ARG UID
 ENV UID=${UID}
 ARG GID
 ENV GID=${GID}
-ARG USER
-ENV USER=${USER}
 ARG HOME
 ENV HOME=${HOME}
+ARG USER
+ENV USER=${USER}
 
 RUN addgroup --quiet --gid ${GID} ${USER} && \
     adduser --quiet --gid ${GID} --uid ${UID} --home ${HOME} ${USER} --disabled-password --gecos ""
 
 # Set the working directory for the build.
 WORKDIR ${HOME}
+ENV CARGO_HOME="${HOME}/.cargo/"
+
+# Build Zebra test binaries, but don't run them
 
 # Leverage a cache mount to /usr/local/cargo/registry/
 # for downloaded dependencies, a cache mount to /usr/local/cargo/git/db
@@ -219,13 +225,26 @@ ARG UID
 ENV UID=${UID}
 ARG GID
 ENV GID=${GID}
-ARG USER
-ENV USER=${USER}
 ARG HOME
 ENV HOME=${HOME}
+ARG USER
+ENV USER=${USER}
 
-RUN addgroup --quiet --gid ${GID} ${USER} && \
-    adduser --quiet --gid ${GID} --uid ${UID} --home ${HOME} ${USER} --disabled-password --gecos ""
+RUN addgroup --gid ${GID} ${USER} && \
+    adduser --gid ${GID} --uid ${UID} --home ${HOME} ${USER}
+
+WORKDIR ${HOME}
+
+# We set the default locations of the conf and cache dirs according to the XDG
+# spec: https://specifications.freedesktop.org/basedir-spec/latest/
+
+ARG ZEBRA_CONF_PATH="${HOME}/.config/zebrad.toml"
+ENV ZEBRA_CONF_PATH=${ZEBRA_CONF_PATH}
+COPY --chown=${UID}:${GID} ./docker/default-zebra-config.toml ${ZEBRA_CONF_PATH}
+
+ARG ZEBRA_CACHE_DIR="${HOME}/.cache/zebra"
+ENV ZEBRA_CACHE_DIR=${ZEBRA_CACHE_DIR}
+RUN mkdir -p ${ZEBRA_CACHE_DIR} && chown -R ${UID}:${GID} ${ZEBRA_CACHE_DIR}
 
 WORKDIR ${HOME}
 RUN chown -R ${UID}:${GID} ${HOME}
