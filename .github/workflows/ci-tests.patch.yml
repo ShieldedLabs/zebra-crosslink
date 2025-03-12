@@ -1,6 +1,6 @@
 # Workflow patches for skipping CI tests when Rust code or dependencies
 # aren't modified in a PR.
-name: Run tests
+name: Run tests (skip CI tests; no rust changes)
 
 # Run on PRs with unmodified code and dependency files.
 on:
