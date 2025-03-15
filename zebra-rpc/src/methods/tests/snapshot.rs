@@ -116,6 +116,7 @@ async fn test_z_get_treestate() {
         false,
         true,
         Buffer::new(MockService::build().for_unit_tests::<_, _, BoxError>(), 1),
+        Buffer::new(MockService::build().for_unit_tests::<_, _, BoxError>(), 1),
         state,
         tip,
         MockAddressBookPeers::new(vec![]),
@@ -180,6 +181,8 @@ async fn test_rpc_response_data_for_network(network: &Network) {
 
     let mut mempool: MockService<_, _, _, zebra_node_services::BoxError> =
         MockService::build().for_unit_tests();
+    let crosslink: MockService<_, _, _, zebra_node_services::BoxError> =
+        MockService::build().for_unit_tests();
     // Create a populated state service
     #[cfg_attr(not(feature = "getblocktemplate-rpcs"), allow(unused_variables))]
     let (state, read_state, latest_chain_tip, _chain_tip_change) =
@@ -209,6 +212,7 @@ async fn test_rpc_response_data_for_network(network: &Network) {
         false,
         true,
         Buffer::new(mempool.clone(), 1),
+        Buffer::new(crosslink.clone(), 1),
         read_state,
         latest_chain_tip,
         MockAddressBookPeers::new(vec![]),
@@ -530,6 +534,7 @@ async fn test_mocked_rpc_response_data_for_network(network: &Network) {
     let (latest_chain_tip, _) = MockChainTip::new();
     let mut state = MockService::build().for_unit_tests();
     let mempool = MockService::build().for_unit_tests();
+    let crosslink = MockService::build().for_unit_tests();
 
     let (_tx, rx) = tokio::sync::watch::channel(None);
     let (rpc, _) = RpcImpl::new(
@@ -539,6 +544,7 @@ async fn test_mocked_rpc_response_data_for_network(network: &Network) {
         false,
         true,
         mempool,
+        crosslink,
         state.clone(),
         latest_chain_tip,
         MockAddressBookPeers::new(vec![]),

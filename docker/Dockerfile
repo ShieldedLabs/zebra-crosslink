@@ -105,6 +105,7 @@ RUN --mount=type=bind,source=zebrad,target=zebrad \
     --mount=type=bind,source=zebra-state,target=zebra-state \
     --mount=type=bind,source=zebra-script,target=zebra-script \
     --mount=type=bind,source=zebra-consensus,target=zebra-consensus \
+    --mount=type=bind,source=zebra-crosslink,target=zebra-crosslink \
     --mount=type=bind,source=zebra-rpc,target=zebra-rpc \
     --mount=type=bind,source=zebra-node-services,target=zebra-node-services \
     --mount=type=bind,source=zebra-test,target=zebra-test \
@@ -164,6 +165,7 @@ RUN --mount=type=bind,source=tower-batch-control,target=tower-batch-control \
     --mount=type=bind,source=tower-fallback,target=tower-fallback \
     --mount=type=bind,source=zebra-chain,target=zebra-chain \
     --mount=type=bind,source=zebra-consensus,target=zebra-consensus \
+    --mount=type=bind,source=zebra-crosslink,target=zebra-crosslink \
     --mount=type=bind,source=zebra-grpc,target=zebra-grpc \
     --mount=type=bind,source=zebra-network,target=zebra-network \
     --mount=type=bind,source=zebra-node-services,target=zebra-node-services \

@@ -40,6 +40,10 @@ use zebra_chain::{
     },
 };
 use zebra_consensus::ParameterCheckpoint;
+use zebra_crosslink::{
+    service::{TFLServiceRequest, TFLServiceResponse},
+    TFLBlockFinality, TFLRoster, TFLStaker,
+};
 use zebra_network::address_book_peers::AddressBookPeers;
 use zebra_node_services::mempool;
 use zebra_state::{
@@ -182,6 +186,119 @@ pub trait Rpc {
     /// The undocumented `chainwork` field is not returned.
     #[method(name = "getblock")]
     async fn get_block(&self, hash_or_height: String, verbosity: Option<u8>) -> Result<GetBlock>;
+
+    /// Placeholder function for getting finalizer roster.
+    ///
+    /// zcashd reference: none
+    /// method: post
+    /// tags: tfl
+    #[method(name = "get_tfl_roster")]
+    async fn get_tfl_roster(&self) -> Option<TFLRoster>;
+
+    /// Placeholder function for modifying stakers.
+    ///
+    /// zcashd reference: none
+    /// method: post
+    /// tags: tfl
+    #[method(name = "update_tfl_staker")]
+    async fn update_tfl_staker(&self, staker: TFLStaker);
+
+    /// Placeholder function for getting actual final block.
+    /// For the sake of testing, this currently treats pre-reorg block as final.
+    ///
+    /// zcashd reference: none
+    /// method: post
+    /// tags: tfl
+    #[method(name = "get_tfl_final_block_hash")]
+    async fn get_tfl_final_block_hash(&self) -> Option<GetBlockHash>;
+
+    /// Placeholder function for getting actual final block hash & height.
+    /// For the sake of testing, this currently treats pre-reorg block as final.
+    ///
+    /// zcashd reference: none
+    /// method: post
+    /// tags: tfl
+    #[method(name = "get_tfl_final_block_height_and_hash")]
+    async fn get_tfl_final_block_height_and_hash(&self) -> Option<GetBlockHeightAndHash>;
+
+    /// Placeholder function for polling finality status of a specific block.
+    /// (Uses [`GetBlockHash`] as a wrapper around [`block::Hash`] so that hashes can be passed as
+    /// a string rather than an array in the json `params`.)
+    ///
+    /// zcashd reference: none
+    /// method: post
+    /// tags: tfl
+    #[method(name = "get_tfl_block_finality_from_hash")]
+    async fn get_tfl_block_finality_from_hash(
+        &self,
+        hash: GetBlockHash,
+    ) -> Option<TFLBlockFinality>;
+
+    /// Placeholder function for polling finality status of a specific transaction.
+    /// (Uses [`GetTxHash`] as a wrapper around [`transaction::Hash`] so that hashes can be passed as
+    /// a string rather than an array in the json `params`.)
+    ///
+    /// zcashd reference: none
+    /// method: post
+    /// tags: tfl
+    #[method(name = "get_tfl_tx_finality_from_hash")]
+    async fn get_tfl_tx_finality_from_hash(&self, hash: GetTxHash) -> Option<TFLBlockFinality>;
+
+    /// Specify finalized block for testing
+    /// TODO: Regtest mode only
+    ///
+    /// zcashd reference: none
+    /// method: post
+    /// tags: tfl
+    #[method(name = "set_tfl_finality_by_hash")]
+    async fn set_tfl_finality_by_hash(&self, hash: GetBlockHash) -> Option<block::Height>;
+
+    /// Placeholder function for subscribing to new final block changes.
+    ///
+    /// zcashd reference: none
+    /// method: ?
+    /// tags: tfl
+    #[subscription(name = "subscribe_tfl_new_final_block_hash", item = String)]
+    fn subscribe_tfl_new_final_block_hash(&self);
+
+    /// Placeholder function for streaming new final block changes (for testing).
+    ///
+    /// zcashd reference: none
+    /// method: ?
+    /// tags: tfl
+    #[method(name = "stream_tfl_new_final_block_hash")]
+    async fn stream_tfl_new_final_block_hash(&self);
+
+    /// Placeholder function for streaming new final transaction changes (for testing).
+    ///
+    /// zcashd reference: none
+    /// method: ?
+    /// tags: tfl
+    #[method(name = "stream_tfl_new_final_txs")]
+    async fn stream_tfl_new_final_txs(&self);
+
+    /// Placeholder function for blocking until a particular block becomes final.
+    ///
+    /// zcashd reference: none
+    /// method: ?
+    /// tags: tfl
+    #[method(name = "notify_tfl_block_becomes_final_by_hash")]
+    async fn notify_tfl_block_becomes_final_by_hash(
+        &self,
+        hash: GetBlockHash,
+    ) -> Option<TFLBlockFinality>;
+
+    /// Placeholder function for blocking until a particular transaction becomes final.
+    ///
+    /// zcashd reference: none
+    /// method: ?
+    /// tags: tfl
+    // TODO: "by_id"?
+    #[method(name = "notify_tfl_tx_becomes_final_by_hash")]
+    async fn notify_tfl_tx_becomes_final_by_hash(
+        &self,
+        hash: GetTxHash,
+    ) -> Option<TFLBlockFinality>;
 
     /// Returns the requested block header by hash or height, as a [`GetBlockHeader`] JSON string.
     /// If the block is not in Zebra's state,
@@ -362,7 +479,7 @@ pub trait Rpc {
 
 /// RPC method implementations.
 #[derive(Clone)]
-pub struct RpcImpl<Mempool, State, Tip, AddressBook>
+pub struct RpcImpl<Mempool, TFLService, State, Tip, AddressBook>
 where
     Mempool: Service<
             mempool::Request,
@@ -373,6 +490,15 @@ where
         + Sync
         + 'static,
     Mempool::Future: Send,
+    TFLService: Service<
+            TFLServiceRequest,
+            Response = TFLServiceResponse,
+            Error = zebra_node_services::BoxError,
+        > + Clone
+        + Send
+        + Sync
+        + 'static,
+    TFLService::Future: Send,
     State: Service<
             zebra_state::ReadRequest,
             Response = zebra_state::ReadResponse,
@@ -409,6 +535,8 @@ where
     /// A handle to the mempool service.
     mempool: Mempool,
 
+    tfl_service: TFLService,
+
     /// A handle to the state service.
     state: State,
 
@@ -430,7 +558,8 @@ where
 /// A type alias for the last event logged by the server.
 pub type LoggedLastEvent = watch::Receiver<Option<(String, tracing::Level, chrono::DateTime<Utc>)>>;
 
-impl<Mempool, State, Tip, AddressBook> Debug for RpcImpl<Mempool, State, Tip, AddressBook>
+impl<Mempool, TFLService, State, Tip, AddressBook> Debug
+    for RpcImpl<Mempool, TFLService, State, Tip, AddressBook>
 where
     Mempool: Service<
             mempool::Request,
@@ -441,6 +570,15 @@ where
         + Sync
         + 'static,
     Mempool::Future: Send,
+    TFLService: Service<
+            TFLServiceRequest,
+            Response = TFLServiceResponse,
+            Error = zebra_node_services::BoxError,
+        > + Clone
+        + Send
+        + Sync
+        + 'static,
+    TFLService::Future: Send,
     State: Service<
             zebra_state::ReadRequest,
             Response = zebra_state::ReadResponse,
@@ -465,7 +603,8 @@ where
     }
 }
 
-impl<Mempool, State, Tip, AddressBook> RpcImpl<Mempool, State, Tip, AddressBook>
+impl<Mempool, TFLService, State, Tip, AddressBook>
+    RpcImpl<Mempool, TFLService, State, Tip, AddressBook>
 where
     Mempool: Service<
             mempool::Request,
@@ -476,6 +615,15 @@ where
         + Sync
         + 'static,
     Mempool::Future: Send,
+    TFLService: Service<
+            TFLServiceRequest,
+            Response = TFLServiceResponse,
+            Error = zebra_node_services::BoxError,
+        > + Clone
+        + Send
+        + Sync
+        + 'static,
+    TFLService::Future: Send,
     State: Service<
             zebra_state::ReadRequest,
             Response = zebra_state::ReadResponse,
@@ -500,6 +648,7 @@ where
         debug_force_finished_sync: bool,
         debug_like_zcashd: bool,
         mempool: Mempool,
+        tfl_service: TFLService,
         state: State,
         latest_chain_tip: Tip,
         address_book: AddressBook,
@@ -526,6 +675,7 @@ where
             debug_force_finished_sync,
             debug_like_zcashd,
             mempool: mempool.clone(),
+            tfl_service: tfl_service,
             state: state.clone(),
             latest_chain_tip: latest_chain_tip.clone(),
             queue_sender,
@@ -545,7 +695,8 @@ where
 }
 
 #[async_trait]
-impl<Mempool, State, Tip, AddressBook> RpcServer for RpcImpl<Mempool, State, Tip, AddressBook>
+impl<Mempool, TFLService, State, Tip, AddressBook> RpcServer
+    for RpcImpl<Mempool, TFLService, State, Tip, AddressBook>
 where
     Mempool: Service<
             mempool::Request,
@@ -556,6 +707,15 @@ where
         + Sync
         + 'static,
     Mempool::Future: Send,
+    TFLService: Service<
+            TFLServiceRequest,
+            Response = TFLServiceResponse,
+            Error = zebra_node_services::BoxError,
+        > + Clone
+        + Send
+        + Sync
+        + 'static,
+    TFLService::Future: Send,
     State: Service<
             zebra_state::ReadRequest,
             Response = zebra_state::ReadResponse,
@@ -993,6 +1153,341 @@ where
             })
         } else {
             Err("invalid verbosity value").map_error(server::error::LegacyCode::InvalidParameter)
+        }
+    }
+
+    async fn get_tfl_roster(&self) -> Option<TFLRoster> {
+        let ret = self
+            .tfl_service
+            .clone()
+            .ready()
+            .await
+            .unwrap()
+            .call(TFLServiceRequest::Roster)
+            .await;
+        if let Ok(TFLServiceResponse::Roster(roster)) = ret {
+            Some(roster)
+        } else {
+            tracing::error!(?ret, "Bad tfl service return.");
+            None
+        }
+    }
+
+    async fn update_tfl_staker(&self, staker: TFLStaker) {
+        if let Ok(TFLServiceResponse::UpdateStaker) = self
+            .tfl_service
+            .clone()
+            .ready()
+            .await
+            .unwrap()
+            .call(TFLServiceRequest::UpdateStaker(staker))
+            .await
+        {
+            // TODO: return something? success/new roster/...
+        }
+    }
+
+    async fn get_tfl_final_block_hash(&self) -> Option<GetBlockHash> {
+        let ret = self
+            .tfl_service
+            .clone()
+            .ready()
+            .await
+            .unwrap()
+            .call(TFLServiceRequest::FinalBlockHash)
+            .await;
+        if let Ok(TFLServiceResponse::FinalBlockHash(val)) = ret {
+            match val {
+                Some(hash) => Some(GetBlockHash(hash)),
+                None => None,
+            }
+        } else {
+            tracing::error!(?ret, "Bad tfl service return.");
+            None
+        }
+    }
+
+    async fn get_tfl_final_block_height_and_hash(&self) -> Option<GetBlockHeightAndHash> {
+        use zebra_state::{ReadRequest, ReadResponse};
+
+        let res = self
+            .tfl_service
+            .clone()
+            .ready()
+            .await
+            .unwrap()
+            .call(TFLServiceRequest::FinalBlockHash)
+            .await;
+
+        if let Ok(TFLServiceResponse::FinalBlockHash(hash)) = res {
+            if let Some(hash) = hash {
+                let final_block_hdr_req = ReadRequest::BlockHeader(HashOrHeight::Hash(hash));
+                let final_block_hdr = self
+                    .state
+                    .clone()
+                    .oneshot(final_block_hdr_req)
+                    .await
+                    .map_misc_error();
+
+                if let Ok(ReadResponse::BlockHeader { height, .. }) = final_block_hdr {
+                    Some(GetBlockHeightAndHash { height, hash: hash })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            tracing::error!(?res, "Bad tfl service return.");
+            None
+        }
+    }
+
+    async fn get_tfl_block_finality_from_hash(
+        &self,
+        hash: GetBlockHash,
+    ) -> Option<TFLBlockFinality> {
+        if let Ok(TFLServiceResponse::BlockFinalityStatus(ret)) = self
+            .tfl_service
+            .clone()
+            .ready()
+            .await
+            .unwrap()
+            .call(TFLServiceRequest::BlockFinalityStatus(hash.0))
+            .await
+        {
+            ret
+        } else {
+            None
+        }
+    }
+
+    async fn get_tfl_tx_finality_from_hash(&self, hash: GetTxHash) -> Option<TFLBlockFinality> {
+        if let Ok(TFLServiceResponse::TxFinalityStatus(ret)) = self
+            .tfl_service
+            .clone()
+            .ready()
+            .await
+            .unwrap()
+            .call(TFLServiceRequest::TxFinalityStatus(hash.0))
+            .await
+        {
+            ret
+        } else {
+            None
+        }
+    }
+
+    async fn set_tfl_finality_by_hash(&self, hash: GetBlockHash) -> Option<block::Height> {
+        if let Ok(TFLServiceResponse::SetFinalBlockHash(ret)) = self
+            .tfl_service
+            .clone()
+            .ready()
+            .await
+            .unwrap()
+            .call(TFLServiceRequest::SetFinalBlockHash(hash.0))
+            .await
+        {
+            ret
+        } else {
+            None
+        }
+    }
+
+    fn subscribe_tfl_new_final_block_hash(&self, sink: jsonrpsee::PendingSubscriptionSink) {
+        //////////////////////////////////////////////////////////////////////////////
+        // TODO: do subscriptions with grpc or json_rpc
+        // - current blocker `zebra-rpc\src\server.rs` > `Server::builder().http_only()`
+        //   => `Subscriptions not supported`
+        // removing it fails later with
+        //   => `{"jsonrpc":"2.0","id":1,"error":{"code":-32603,"message":"Internal error"}}`
+        // $ wscat -c ws://127.0.0.1:62229  -x '{"jsonrpc":"2.0","method":"subscribe_tfl_new_final_block_hash","params":[],"id":1}'
+        //   => {"jsonrpc":"2.0","id":1,"result":5144259933523683} (or other seemingly random numbers)
+
+        let this = self.clone();
+        tokio::spawn(async move {
+            if let Ok(sink) = sink.accept().await {
+                // let stream = futures::stream::iter(["one", "two", "three"]);
+                // sink.pipe_from_stream(stream).await;
+                let _ = sink.send(jsonrpsee::SubscriptionMessage::from(format!("RPC: hi")));
+                // TODO: await/poll
+                this.stream_tfl_new_final_block_hash().await;
+            }
+        });
+    }
+
+    async fn stream_tfl_new_final_block_hash(&self) {
+        use rand::RngCore;
+        // TODO: subscribe to TFL notifs
+        // ALT: transfer ownership of channel to TFL
+
+        let id = rand::thread_rng().next_u32();
+        let rx = self
+            .tfl_service
+            .clone()
+            .ready()
+            .await
+            .unwrap()
+            .call(TFLServiceRequest::FinalBlockRx)
+            .await;
+        if let Ok(TFLServiceResponse::FinalBlockRx(mut rx)) = rx {
+            loop {
+                let rx_res = rx.recv().await;
+                if let Ok(block) = rx_res {
+                    tracing::info!("{:x}: RX new block: {}", id, block);
+                } else {
+                    tracing::error!(?rx_res, "Bad channel TX");
+                }
+            }
+        } else {
+            tracing::error!(?rx, "Bad tfl service return.");
+        };
+    }
+
+    async fn notify_tfl_block_becomes_final_by_hash(
+        &self,
+        hash: GetBlockHash,
+    ) -> Option<TFLBlockFinality> {
+        let mut rx = {
+            if let Ok(TFLServiceResponse::FinalBlockRx(rx)) = self
+                .tfl_service
+                .clone()
+                .ready()
+                .await
+                .unwrap()
+                .call(TFLServiceRequest::FinalBlockRx)
+                .await
+            {
+                rx
+            } else {
+                return None;
+            }
+        };
+        loop {
+            match if let Ok(TFLServiceResponse::BlockFinalityStatus(ret)) = self
+                .tfl_service
+                .clone()
+                .ready()
+                .await
+                .unwrap()
+                .call(TFLServiceRequest::BlockFinalityStatus(hash.0))
+                .await
+            {
+                ret
+            } else {
+                None
+            } {
+                None => {
+                    return None;
+                }
+                Some(status) => {
+                    if status == TFLBlockFinality::NotYetFinalized {
+                        drop(rx.recv().await);
+                        // now we can retry and might get a different finality status
+                    } else {
+                        return Some(status);
+                    }
+                }
+            }
+        }
+    }
+
+    async fn stream_tfl_new_final_txs(&self) {
+        use rand::RngCore;
+        // TODO: subscribe to TFL notifs
+        // ALT: transfer ownership of channel to TFL
+
+        let id = rand::thread_rng().next_u32();
+        let rx = self
+            .tfl_service
+            .clone()
+            .ready()
+            .await
+            .unwrap()
+            .call(TFLServiceRequest::FinalBlockRx)
+            .await;
+
+        if let Ok(TFLServiceResponse::FinalBlockRx(mut rx)) = rx {
+            loop {
+                let rx_res = rx.recv().await;
+                if let Ok(block_hash) = rx_res {
+                    let txs_res = self
+                        .state
+                        .clone()
+                        .oneshot(zebra_state::ReadRequest::TransactionIdsForBlock(
+                            block_hash.into(),
+                        ))
+                        .await;
+                    if let Ok(txs) = txs_res {
+                        tracing::info!(
+                            "{:x}: RX new block {}, with transactions: {:?}",
+                            id,
+                            block_hash,
+                            txs
+                        );
+                    } else {
+                        tracing::error!(
+                            ?txs_res,
+                            "Couldn't read transactions for new final block {}",
+                            block_hash
+                        );
+                    }
+                } else {
+                    tracing::error!(?rx_res, "Bad channel TX");
+                }
+            }
+        } else {
+            tracing::error!(?rx, "Bad tfl service return.");
+        };
+    }
+
+    async fn notify_tfl_tx_becomes_final_by_hash(
+        &self,
+        hash: GetTxHash,
+    ) -> Option<TFLBlockFinality> {
+        let mut rx = {
+            if let Ok(TFLServiceResponse::FinalBlockRx(rx)) = self
+                .tfl_service
+                .clone()
+                .ready()
+                .await
+                .unwrap()
+                .call(TFLServiceRequest::FinalBlockRx)
+                .await
+            {
+                rx
+            } else {
+                return None;
+            }
+        };
+
+        // TODO (perf): calculate height once, then early out for most iterations
+        loop {
+            match if let Ok(TFLServiceResponse::TxFinalityStatus(ret)) = self
+                .tfl_service
+                .clone()
+                .ready()
+                .await
+                .unwrap()
+                .call(TFLServiceRequest::TxFinalityStatus(hash.0))
+                .await
+            {
+                ret
+            } else {
+                None
+            } {
+                None => {
+                    return None;
+                }
+                Some(status) => {
+                    if status == TFLBlockFinality::NotYetFinalized {
+                        drop(rx.recv().await);
+                        // now we can retry and might get a different finality status
+                    } else {
+                        return Some(status);
+                    }
+                }
+            }
         }
     }
 
@@ -2362,6 +2857,11 @@ impl Default for GetBlockHeaderObject {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(transparent)]
 pub struct GetBlockHash(#[serde(with = "hex")] pub block::Hash);
+
+/// Hex-encoded hash of a specific transaction.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(transparent)]
+pub struct GetTxHash(#[serde(with = "hex")] pub transaction::Hash);
 
 /// Response to a `getbestblockheightandhash` RPC request.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]

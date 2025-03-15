@@ -19,6 +19,7 @@ use tracing::*;
 use zebra_chain::{
     block, chain_sync_status::ChainSyncStatus, chain_tip::ChainTip, parameters::Network,
 };
+use zebra_crosslink::service::{TFLServiceRequest, TFLServiceResponse};
 use zebra_network::AddressBookPeers;
 use zebra_node_services::mempool;
 
@@ -99,6 +100,7 @@ impl RpcServer {
         VersionString,
         UserAgentString,
         Mempool,
+        TFLService,
         State,
         Tip,
         BlockVerifierRouter,
@@ -111,6 +113,7 @@ impl RpcServer {
         build_version: VersionString,
         user_agent: UserAgentString,
         mempool: Mempool,
+        tfl_service: TFLService,
         state: State,
         #[cfg_attr(not(feature = "getblocktemplate-rpcs"), allow(unused_variables))]
         block_verifier_router: BlockVerifierRouter,
@@ -136,6 +139,15 @@ impl RpcServer {
             + Sync
             + 'static,
         Mempool::Future: Send,
+        TFLService: Service<
+                TFLServiceRequest,
+                Response = TFLServiceResponse,
+                Error = zebra_node_services::BoxError,
+            > + Clone
+            + Send
+            + Sync
+            + 'static,
+        TFLService::Future: Send,
         State: Service<
                 zebra_state::ReadRequest,
                 Response = zebra_state::ReadResponse,
@@ -187,6 +199,7 @@ impl RpcServer {
             #[cfg(not(feature = "getblocktemplate-rpcs"))]
             true,
             mempool,
+            tfl_service,
             state,
             latest_chain_tip,
             address_book,

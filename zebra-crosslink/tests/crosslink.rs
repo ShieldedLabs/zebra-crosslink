@@ -1,3 +1,5 @@
+//! Integration tests for the `zebra-crosslink` crate.
+
 #[cfg(test)]
 mod tests {
     #[test]

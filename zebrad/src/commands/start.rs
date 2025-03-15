@@ -102,6 +102,8 @@ use crate::{
     prelude::*,
 };
 
+use tower::Service;
+
 /// Start the application (default command)
 #[derive(Command, Debug, Default, clap::Parser)]
 pub struct StartCmd {
@@ -252,6 +254,25 @@ impl StartCmd {
         // Create a channel to send mined blocks to the gossip task
         let submit_block_channel = SubmitBlockChannel::new();
 
+        info!("spawning tfl service task");
+        let (tfl, tfl_service_task_handle) = {
+            let read_only_state_service = read_only_state_service.clone();
+            zebra_crosslink::service::spawn_new_tfl_service(Arc::new(move |req| {
+                let read_only_state_service = read_only_state_service.clone();
+                Box::pin(async move {
+                    read_only_state_service
+                        .clone()
+                        .ready()
+                        .await
+                        .unwrap()
+                        .call(req)
+                        .await
+                })
+            }))
+        };
+        let tfl_service = BoxService::new(tfl);
+        let tfl_service = ServiceBuilder::new().buffer(1).service(tfl_service);
+
         // Launch RPC server
         let (rpc_task_handle, mut rpc_tx_queue_task_handle) =
             if let Some(listen_addr) = config.rpc.listen_addr {
@@ -263,6 +284,7 @@ impl StartCmd {
                     build_version(),
                     user_agent(),
                     mempool.clone(),
+                    tfl_service.clone(),
                     read_only_state_service.clone(),
                     block_verifier_router.clone(),
                     sync_status.clone(),
@@ -436,6 +458,7 @@ impl StartCmd {
         pin!(mempool_crawler_task_handle);
         pin!(mempool_queue_checker_task_handle);
         pin!(tx_gossip_task_handle);
+        pin!(tfl_service_task_handle);
         pin!(progress_task_handle);
         pin!(end_of_support_task_handle);
         pin!(miner_task_handle);
@@ -501,6 +524,11 @@ impl StartCmd {
                     .map(|_| info!("transaction gossip task exited"))
                     .map_err(|e| eyre!(e)),
 
+                tfl_service_result = &mut tfl_service_task_handle => tfl_service_result
+                    .expect("unexpected panic in the tfl service task")
+                    .map(|_| info!("tfl service task exited"))
+                    .map_err(|e| eyre!(e)),
+
                 // The progress task runs forever, unless it panics.
                 // So we don't need to provide an exit status for it.
                 progress_result = &mut progress_task_handle => {
@@ -559,6 +587,7 @@ impl StartCmd {
         mempool_crawler_task_handle.abort();
         mempool_queue_checker_task_handle.abort();
         tx_gossip_task_handle.abort();
+        tfl_service_task_handle.abort();
         progress_task_handle.abort();
         end_of_support_task_handle.abort();
         miner_task_handle.abort();
