@@ -1,128 +1,65 @@
-# Note that all fields that take a lint level have these possible values:
-# * deny - An error will be produced and the check will fail
-# * warn - A warning will be produced, but the check will not fail
-# * allow - No warning or error will be produced, though in some cases a note
-# will be
+# Configuration file for cargo-deny
 
-# This section is considered when running `cargo deny check bans`.
-# More documentation about the 'bans' section can be found here:
-# https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html
-[bans]
-# Lint level for when multiple versions of the same crate are detected
-multiple-versions = "deny"
+[graph]
+targets = [
+    # Targets used by zcashd
+    { triple = "aarch64-unknown-linux-gnu" },
+    { triple = "x86_64-apple-darwin" },
+    { triple = "x86_64-pc-windows-gnu" },
+    { triple = "x86_64-unknown-freebsd" },
+    { triple = "x86_64-unknown-linux-gnu" },
+    # Targets used by zcash-android-wallet-sdk
+    { triple = "aarch64-linux-android" },
+    { triple = "armv7-linux-androideabi" },
+    { triple = "i686-linux-android" },
+    { triple = "x86_64-linux-android" },
+    # Targets used by zcash-swift-wallet-sdk
+    { triple = "aarch64-apple-darwin" },
+    { triple = "aarch64-apple-ios" },
+    { triple = "aarch64-apple-ios-sim" },
+    { triple = "x86_64-apple-darwin" },
+    { triple = "x86_64-apple-ios" },
+]
+all-features = true
+exclude-dev = true
 
-# Don't allow wildcard ("any version") dependencies
-# TODO: Change to `deny` after we upgrade to crates.io version of the ECC dependencies (#8749).
-wildcards = "allow"
-# Allow private and dev wildcard dependencies.
-# Switch this to `false` when #6924 is implemented.
-allow-wildcard-paths = true
-
-# The graph highlighting used when creating dotgraphs for crates
-# with multiple versions
-# * lowest-version - The path to the lowest versioned duplicate is highlighted
-# * simplest-path - The path to the version with the fewest edges is highlighted
-# * all - Both lowest-version and simplest-path are used
-highlight = "all"
-
-# List of crates that are allowed. Use with care!
-#allow = [
-#]
-
-# List of crates that can never become Zebra dependencies.
-deny = [
-    # Often has memory safety vulnerabilities.
-    # Enabled by --all-features, use the `cargo hack` script in the deny.toml CI job instead.
-    { name = "openssl" },
-    { name = "openssl-sys" },
+[licenses]
+version = 2
+allow = [
+    "Apache-2.0",
+    "MIT",
+]
+exceptions = [
+    { name = "arrayref", allow = ["BSD-2-Clause"] },
+    { name = "async_executors", allow = ["Unlicense"] },
+    { name = "bounded-vec-deque", allow = ["BSD-3-Clause"] },
+    { name = "coarsetime", allow = ["ISC"] },
+    { name = "curve25519-dalek", allow = ["BSD-3-Clause"] },
+    { name = "ed25519-dalek", allow = ["BSD-3-Clause"] },
+    { name = "inotify", allow = ["ISC"] },
+    { name = "inotify-sys", allow = ["ISC"] },
+    { name = "matchit", allow = ["BSD-3-Clause"] },
+    { name = "minreq", allow = ["ISC"] },
+    { name = "notify", allow = ["CC0-1.0"] },
+    { name = "option-ext", allow = ["MPL-2.0"] },
+    { name = "priority-queue", allow = ["MPL-2.0"] },
+    { name = "ring", allow = ["LicenseRef-ring"] },
+    { name = "rustls-webpki", allow = ["ISC"] },
+    { name = "secp256k1", allow = ["CC0-1.0"] },
+    { name = "secp256k1-sys", allow = ["CC0-1.0"] },
+    { name = "simple_asn1", allow = ["ISC"] },
+    { name = "slotmap", allow = ["Zlib"] },
+    { name = "subtle", allow = ["BSD-3-Clause"] },
+    { name = "tinystr", allow = ["Unicode-3.0"] },
+    { name = "unicode-ident", allow = ["Unicode-DFS-2016"] },
+    { name = "untrusted", allow = ["ISC"] },
+    { name = "webpki-roots", allow = ["MPL-2.0"] },
+    { name = "x25519-dalek", allow = ["BSD-3-Clause"] },
 ]
 
-# We only use this for some `librustzcash` and `orchard` crates.
-# If we add a crate here, duplicate dependencies of that crate are still shown.
-#
-# Certain crates/versions that will be skipped when doing duplicate detection.
-skip = [
-]
-
-# Similarly to `skip` allows you to skip certain crates during duplicate
-# detection. Unlike skip, it also includes the entire tree of transitive
-# dependencies starting at the specified crate, up to a certain depth, which is
-# by default infinite
-skip-tree = [
-    # wait for ordered-map to release a dependency fix
-    { name = "ordered-map", version = "=0.4.2" },
-
-    # wait for structopt upgrade (or upgrade to clap 4)
-    { name = "clap", version = "=2.34.0" },
-
-    # wait for abscissa_core to upgrade
-    {name = "tracing-log", version = "=0.1.4" },
-
-    # wait for console-subscriber and tower to update hdrhistogram.
-    # also wait for ron to update insta, and wait for tonic update.
-    { name = "base64", version = "=0.13.1" },
-
-    # wait for abscissa_core to update toml
-    { name = "toml", version = "=0.5.11" },
-
-    # wait for structopt-derive to update heck
-    { name = "heck", version = "=0.3.3" },
-
-    # wait for librocksdb-sys to update bindgen to one that uses newer itertools
-    { name = "itertools", version = "=0.12.1" },
-    { name = "bindgen", version = "=0.69.5" },
-
-    # wait for halo2_gadgets and primitive-types to update uint
-    { name = "uint", version = "=0.9.5" },
-
-    # wait for zebra to update tower
-    { name = "tower", version = "=0.4.13" },
-    { name = "hashbrown", version = "=0.14.5" },
-
-    # wait for zebra to update vergen
-    { name = "thiserror", version = "=1.0.69" },
-    { name = "thiserror-impl", version = "=1.0.69" },
-
-    # wait for all librustzcash crates to update sha2, secp256k1, and ripemd
-    { name = "sha2", version = "=0.10.9" },
-    { name = "ripemd", version = "=0.1.3" },
-
-    # wait for zcash_script to update itertools
-    { name = "itertools", version = "=0.13.0" },
-
-    # wait for abscissa_core to update synstructure
-    { name = "synstructure", version = "=0.12.6" },
-
-    { name = "windows-sys", version = "=0.52.0" },
-
-    { name = "linux-raw-sys", version = "0.4.15" },
-
-    { name = "quick-xml", version = "0.37.5" },
-
-    { name = "rustix", version = "0.38.44" },
-]
-
-# This section is considered when running `cargo deny check sources`.
-# More documentation about the 'sources' section can be found here:
-# https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html
-[sources]
-# Lint level for what to happen when a crate from a crate registry that is not
-# in the allow list is encountered
-unknown-registry = "deny"
-# Lint level for what to happen when a crate from a git repository that is not
-# in the allow list is encountered
-unknown-git = "deny"
-# List of URLs for allowed crate registries. Defaults to the crates.io index
-# if not specified. If it is specified but empty, no registries are allowed.
-allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-# List of URLs for allowed Git repositories
-allow-git = [
-    "https://github.com/zcash/librustzcash.git",
-    "https://github.com/zcash/incrementalmerkletree",
-    "https://github.com/zcash/orchard",
-    "https://github.com/zcash/sapling-crypto"
-]
-
-[sources.allow-org]
-github = [
+[[licenses.clarify]]
+name = "ring"
+expression = "LicenseRef-ring"
+license-files = [
+    { path = "LICENSE", hash = 0xbd0eed23 },
 ]
