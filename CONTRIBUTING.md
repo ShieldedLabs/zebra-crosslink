@@ -1,36 +1,79 @@
-# Contributing
+# Contributing to Zaino
 
-* [Running and Debugging](#running-and-debugging)
-* [Bug Reports](#bug-reports)
-* [Pull Requests](#pull-requests)
-* [Coverage Reports](#coverage-reports)
+Welcome and thank you for your interest in Zaino! We look forward to your contribution to this important part of the Zcash mainnet and testing ecosystem.
 
-## Running and Debugging
-[running-and-debugging]: #running-and-debugging
+## Table of Contents
+- [Getting Started](#getting-started)
+- [How to Contribute Code and Documentation](#how-to-contribute)
+- [How to open Bug Reports and Feature Requests](#bug-reports-and-feature-requests)
+- [Local Testing](#local-testing)
+- [Communication Channels](#communication-channels)
+- [More Documentation](#more-documentation)
+- [Software Philosophy](#software-philosophy)
 
-See the [user documentation](https://zebra.zfnd.org/user.html) for details on
-how to build, run, and instrument Zebra.
+## Getting Started
+To get started using Zaino, please see our [use cases document](./docs/use_cases.md) where you can find instructions for use and example use cases.
 
-## Bug Reports
-[bug-reports]: #bug-reports
+We welcome and appreciate contributions in the form of code, documentation, bug reports and feature requests. We also generally enjoy feedback and outreach efforts.
 
-Please [create an issue](https://github.com/ZcashFoundation/zebra/issues/new?assignees=&labels=C-bug%2C+S-needs-triage&projects=&template=bug_report.yml&title=) on the Zebra issue tracker.
+## How to Contribute
+Code and documentation are very helpful and the lifeblood of Free Software. To merge in code to this repo, one will have to have a [GitHub account](https://docs.github.com/en/account-and-profile), and the ability to cryptographically verify commits against this identity. 
+The best way to verify is using a GPG signature. See [this document about commit signature verification.](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification)
+Code, being Rust, should be formatted using `rustfmt` and applying the `clippy` suggestions.
+Code should be as complex as it needs to be, but no more.
+All code will be reviewed in public, as conversations on the pull request. It is very possible there will be requested changed or questions. This is not a sign of disrespect, but needed to keep code quality high in an important piece of software in the Zcash ecosystem.
+Documentation should be clear and accurate to the latest commit on `dev`.
+These contributions must be [GitHub pull requests](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests) opened _from a personal fork_ of the project, _to this repo, zingolabs/zaino_. Generally pull requests will be against `dev`, the development branch.
 
-## Pull Requests
-[pull-requests]: #pull-requests
+## Bug Reports and Feature Requests
 
-PRs are welcome for small and large changes, but please don't make large PRs
-without coordinating with us via the [issue tracker](https://github.com/ZcashFoundation/zebra/issues) or [Discord](https://discord.gg/yVNhQwQE68). This helps
-increase development coordination and makes PRs easier to merge. Low-effort PRs, including but not limited to fixing typos and grammatical corrections, will generally be redone by us to dissuade metric farming.
+If you believe you have discovered a security issue and wish to disclose it non-pubicly, please contact us at:
+zingodisclosure@proton.me
 
-Check out the [help wanted][hw] or [good first issue][gfi] labels if you're
-looking for a place to get started!
+Bug reports and feature requests can best be opened as [issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/creating-an-issue) on this GitHub repo. To do so you will need a [GitHub account](https://docs.github.com/en/account-and-profile). Especially for bug reports, any details you can offer will help us understand the issue better. Such details include versions or commits used in exposing the bug, what operating system is being used, and so on.
 
-Zebra follows the [conventional commits][conventional] standard for the commits
-merged to main. Since PRs are squashed before merging to main, the PR titles
-should follow the conventional commits standard so that the merged commits
-are conformant.
+Bug reports and feature requests can also be registered via other [communication channels](#communication-channels), but will be accepted in this way without guarantees of visibility to project software developers.
 
-[hw]: https://github.com/ZcashFoundation/zebra/labels/E-help-wanted
-[gfi]: https://github.com/ZcashFoundation/zebra/labels/good%20first%20issue
-[conventional]: https://www.conventionalcommits.org/en/v1.0.0/#specification
+## Local Testing
+Local testing requires a system with ample resources, particularly RAM.
+
+Zaino uses [`cargo nextest`](https://nexte.st/). On the linux command line, with a system already using Rust (and `cargo`), you can install this using `cargo install cargo-nextest --locked` or from GitHub with `cargo install --git https://github.com/nextest-rs/nextest --bin cargo-nextest`.
+
+After installing this crate, all tests can be run locally with `cargo nextest run`.
+
+For more details see our [testing document](./docs/testing.md).
+
+## Communication Channels
+In addition to GitHub, there is a ZingoLabs [Matrix](https://matrix.org/) channel that can be reached through [this web link](https://matrix.to/#/!cVsptZxBgWgmxWlHYB:matrix.org). Our primary languages are English and Spanish.
+
+Other channels where you may be able to reach Zingolabs developers that include the [Zcash Community Forum](https://forum.zcashcommunity.com/) website, Bluesky, Telegram and X (English and Spanish), Instagram (Spanish), and Zcash related Discord.
+
+## More Documentation
+
+To see more included documentation, please see [our docs directory](./docs/).
+## Software Philosophy
+We believe in the power of Free and Open Source Software (FOSS) as the best path for individual and social freedom in computing.
+
+Very broadly, Free Software provides a clear path to make software benefit its users. That is, Free Software  has the possibility to be used it like a traditional tool, extending the user's capabilities, unlike closed source software which constrains usage, visability and adaptability of the user while providing some function.
+
+In more detail, the Free Software Foundation states FOSS allows:
+
+The freedom to run a program, for any purpose,
+
+The freedom to study how a program works and adapt it to a person’s needs. Access to the source code is a precondition for this,
+
+The freedom to redistribute copies so that you can help your neighbour,  and
+
+The freedom to improve a program and release your improvements to the public, so that the whole community benefits. Access to the source code is a precondition for this.
+
+Developing from this philosophical perspective has several practical advantages:
+
+Reduced duplication of effort,
+
+Building upon the work of others,
+
+Better quality control,
+
+Reduced maintenance costs.
+ 
+To read more, see [this document on wikibooks](https://en.wikibooks.org/wiki/FOSS_A_General_Introduction/Preface).
