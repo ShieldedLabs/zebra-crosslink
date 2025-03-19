@@ -1,5 +1,3 @@
-//! The Orchard fields of a PCZT.
-
 use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -64,7 +62,6 @@ pub struct Bundle {
     pub(crate) bsk: Option<[u8; 32]>,
 }
 
-/// Information about an Orchard action within a transaction.
 #[derive(Clone, Debug, Serialize, Deserialize, Getters)]
 pub struct Action {
     //
@@ -92,7 +89,7 @@ pub struct Action {
     pub(crate) rcv: Option<[u8; 32]>,
 }
 
-/// Information about the spend part of an Orchard action.
+/// Information about a Sapling spend within a transaction.
 #[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize, Getters)]
 pub struct Spend {
@@ -181,7 +178,7 @@ pub struct Spend {
     pub(crate) proprietary: BTreeMap<String, Vec<u8>>,
 }
 
-/// Information about the output part of an Orchard action.
+/// Information about an Orchard output within a transaction.
 #[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize, Getters)]
 pub struct Output {

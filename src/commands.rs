@@ -7,6 +7,8 @@ use zcash_client_sqlite::AccountUuid;
 pub(crate) mod inspect;
 pub(crate) mod pczt;
 pub(crate) mod wallet;
+pub(crate) mod set_finality;
+
 
 #[cfg(feature = "pczt-qr")]
 pub(crate) mod keystone;

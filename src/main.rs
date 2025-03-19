@@ -22,7 +22,7 @@ mod ui;
 #[allow(dead_code)]
 mod tui;
 
-const MIN_CONFIRMATIONS: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(3) };
+const MIN_CONFIRMATIONS: NonZeroU32 = NonZeroU32::new(3).unwrap();
 
 fn parse_hex(data: &str) -> Result<Vec<u8>, hex::FromHexError> {
     hex::decode(data)
@@ -52,6 +52,8 @@ pub(crate) enum Command {
     /// Emulate a Keystone device
     #[cfg(feature = "pczt-qr")]
     Keystone(commands::Keystone),
+
+    SetFinality(commands::set_finality::Command),
 }
 
 fn main() -> Result<(), anyhow::Error> {
@@ -117,6 +119,7 @@ fn main() -> Result<(), anyhow::Error> {
         let shutdown = ShutdownListener::new();
 
         match opts.command {
+            Some(Command::SetFinality(command)) => command.run().await,
             Some(Command::Inspect(command)) => command.run().await,
             Some(Command::Wallet(commands::Wallet {
                 wallet_dir,
@@ -152,7 +155,6 @@ fn main() -> Result<(), anyhow::Error> {
                     commands::wallet::tree::Command::Explore(command) => {
                         command.run(shutdown, wallet_dir, tui).await
                     }
-                    commands::wallet::tree::Command::Fix(command) => command.run(wallet_dir).await,
                 },
             },
             Some(Command::Pczt(commands::Pczt {

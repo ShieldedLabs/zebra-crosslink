@@ -4,7 +4,6 @@ use std::borrow::BorrowMut;
 use std::fmt;
 use std::rc::Rc;
 
-use rand_core::RngCore;
 use regex::Regex;
 use schemerz::{Migrator, MigratorError};
 use schemerz_rusqlite::RusqliteAdapter;
@@ -19,7 +18,7 @@ use zcash_protocol::{consensus, value::BalanceError};
 use self::migrations::verify_network_compatibility;
 
 use super::commitment_tree;
-use crate::{error::SqliteClientError, util::Clock, WalletDb};
+use crate::{error::SqliteClientError, WalletDb};
 
 mod migrations;
 
@@ -237,10 +236,6 @@ fn sqlite_client_error_to_wallet_migration_error(e: SqliteClientError) -> Wallet
         SqliteClientError::NoteFilterInvalid(_) => {
             unreachable!("we don't do note selection in migrations")
         }
-        #[cfg(feature = "transparent-inputs")]
-        SqliteClientError::Scheduling(e) => {
-            WalletMigrationError::Other(SqliteClientError::Scheduling(e))
-        }
     }
 }
 
@@ -288,7 +283,6 @@ fn sqlite_client_error_to_wallet_migration_error(e: SqliteClientError) -> Wallet
 /// # use std::error::Error;
 /// # use secrecy::SecretVec;
 /// # use tempfile::NamedTempFile;
-/// use rand_core::OsRng;
 /// use zcash_protocol::consensus::Network;
 /// use zcash_client_sqlite::{
 ///     WalletDb,
@@ -300,7 +294,7 @@ fn sqlite_client_error_to_wallet_migration_error(e: SqliteClientError) -> Wallet
 /// # let data_file = NamedTempFile::new().unwrap();
 /// # let get_data_db_path = || data_file.path();
 /// # let load_seed = || -> Result<_, String> { Ok(SecretVec::new(vec![])) };
-/// let mut db = WalletDb::for_path(get_data_db_path(), Network::TestNetwork, SystemClock, OsRng)?;
+/// let mut db = WalletDb::for_path(get_data_db_path(), Network::TestNetwork, SystemClock)?;
 /// match init_wallet_db(&mut db, None) {
 ///     Err(e)
 ///         if matches!(
@@ -325,10 +319,9 @@ fn sqlite_client_error_to_wallet_migration_error(e: SqliteClientError) -> Wallet
 pub fn init_wallet_db<
     C: BorrowMut<rusqlite::Connection>,
     P: consensus::Parameters + 'static,
-    CL: Clock + Clone + 'static,
-    R: RngCore + Clone + 'static,
+    CL,
 >(
-    wdb: &mut WalletDb<C, P, CL, R>,
+    wdb: &mut WalletDb<C, P, CL>,
     seed: Option<SecretVec<u8>>,
 ) -> Result<(), MigratorError<Uuid, WalletMigrationError>> {
     init_wallet_db_internal(wdb, seed, &[], true)
@@ -337,10 +330,9 @@ pub fn init_wallet_db<
 pub(crate) fn init_wallet_db_internal<
     C: BorrowMut<rusqlite::Connection>,
     P: consensus::Parameters + 'static,
-    CL: Clock + Clone + 'static,
-    R: RngCore + Clone + 'static,
+    CL,
 >(
-    wdb: &mut WalletDb<C, P, CL, R>,
+    wdb: &mut WalletDb<C, P, CL>,
     seed: Option<SecretVec<u8>>,
     target_migrations: &[Uuid],
     verify_seed_relevance: bool,
@@ -382,15 +374,7 @@ pub(crate) fn init_wallet_db_internal<
     let adapter = RusqliteAdapter::new(wdb.conn.borrow_mut(), Some(MIGRATIONS_TABLE.to_string()));
     let mut migrator = Migrator::new(adapter);
     migrator
-        .register_multiple(
-            migrations::all_migrations(
-                &wdb.params,
-                wdb.clock.clone(),
-                wdb.rng.clone(),
-                seed.clone(),
-            )
-            .into_iter(),
-        )
+        .register_multiple(migrations::all_migrations(&wdb.params, seed.clone()).into_iter())
         .expect("Wallet migration registration should have been successful.");
     if target_migrations.is_empty() {
         migrator.up(None)?;
@@ -465,32 +449,7 @@ fn verify_sqlite_version_compatibility(
 }
 
 #[cfg(test)]
-pub(crate) mod testing {
-    use rand::RngCore;
-    use schemerz::MigratorError;
-    use secrecy::SecretVec;
-    use uuid::Uuid;
-    use zcash_protocol::consensus;
-
-    use crate::{util::Clock, WalletDb};
-
-    use super::WalletMigrationError;
-
-    pub(crate) fn init_wallet_db<
-        P: consensus::Parameters + 'static,
-        CL: Clock + Clone + 'static,
-        R: RngCore + Clone + 'static,
-    >(
-        wdb: &mut WalletDb<rusqlite::Connection, P, CL, R>,
-        seed: Option<SecretVec<u8>>,
-    ) -> Result<(), MigratorError<Uuid, WalletMigrationError>> {
-        super::init_wallet_db_internal(wdb, seed, &[], true)
-    }
-}
-
-#[cfg(test)]
 mod tests {
-    use rand::RngCore;
     use rusqlite::{self, named_params, Connection, ToSql};
     use secrecy::Secret;
 
@@ -510,18 +469,17 @@ mod tests {
     use zcash_protocol::consensus::{self, BlockHeight, BranchId, Network, NetworkConstants};
     use zip32::AccountId;
 
-    use super::testing::init_wallet_db;
-    use crate::{
-        testing::db::{test_clock, test_rng, TestDbFactory},
-        util::Clock,
-        wallet::db,
-        WalletDb, UA_TRANSPARENT,
-    };
+    use crate::{testing::db::TestDbFactory, wallet::db, WalletDb, UA_TRANSPARENT};
+
+    use super::init_wallet_db;
 
     #[cfg(feature = "transparent-inputs")]
     use {
         super::WalletMigrationError,
-        crate::wallet::{self, pool_code, PoolType},
+        crate::{
+            testing::db::test_clock,
+            wallet::{self, pool_code, PoolType},
+        },
         zcash_address::test_vectors,
         zcash_client_backend::data_api::WalletWrite,
         zip32::DiversifierIndex,
@@ -654,8 +612,8 @@ mod tests {
 
     #[test]
     fn init_migrate_from_0_3_0() {
-        fn init_0_3_0<P: consensus::Parameters, CL: Clock + Clone, R: RngCore + Clone>(
-            wdb: &mut WalletDb<rusqlite::Connection, P, CL, R>,
+        fn init_0_3_0<P: consensus::Parameters, CL>(
+            wdb: &mut WalletDb<rusqlite::Connection, P, CL>,
             extfvk: &ExtendedFullViewingKey,
             account: AccountId,
         ) -> Result<(), rusqlite::Error> {
@@ -759,13 +717,7 @@ mod tests {
         }
 
         let data_file = NamedTempFile::new().unwrap();
-        let mut db_data = WalletDb::for_path(
-            data_file.path(),
-            Network::TestNetwork,
-            test_clock(),
-            test_rng(),
-        )
-        .unwrap();
+        let mut db_data = WalletDb::for_path(data_file.path(), Network::TestNetwork, ()).unwrap();
 
         let seed = [0xab; 32];
         let account = AccountId::ZERO;
@@ -782,8 +734,8 @@ mod tests {
 
     #[test]
     fn init_migrate_from_autoshielding_poc() {
-        fn init_autoshielding<P: consensus::Parameters, CL, R>(
-            wdb: &mut WalletDb<rusqlite::Connection, P, CL, R>,
+        fn init_autoshielding<P: consensus::Parameters, CL>(
+            wdb: &mut WalletDb<rusqlite::Connection, P, CL>,
             extfvk: &ExtendedFullViewingKey,
             account: AccountId,
         ) -> Result<(), rusqlite::Error> {
@@ -937,13 +889,7 @@ mod tests {
         }
 
         let data_file = NamedTempFile::new().unwrap();
-        let mut db_data = WalletDb::for_path(
-            data_file.path(),
-            Network::TestNetwork,
-            test_clock(),
-            test_rng(),
-        )
-        .unwrap();
+        let mut db_data = WalletDb::for_path(data_file.path(), Network::TestNetwork, ()).unwrap();
 
         let seed = [0xab; 32];
         let account = AccountId::ZERO;
@@ -960,8 +906,8 @@ mod tests {
 
     #[test]
     fn init_migrate_from_main_pre_migrations() {
-        fn init_main<P: consensus::Parameters, CL, R>(
-            wdb: &mut WalletDb<rusqlite::Connection, P, CL, R>,
+        fn init_main<P: consensus::Parameters, CL>(
+            wdb: &mut WalletDb<rusqlite::Connection, P, CL>,
             ufvk: &UnifiedFullViewingKey,
             account: AccountId,
         ) -> Result<(), rusqlite::Error> {
@@ -1111,13 +1057,7 @@ mod tests {
         }
 
         let data_file = NamedTempFile::new().unwrap();
-        let mut db_data = WalletDb::for_path(
-            data_file.path(),
-            Network::TestNetwork,
-            test_clock(),
-            test_rng(),
-        )
-        .unwrap();
+        let mut db_data = WalletDb::for_path(data_file.path(), Network::TestNetwork, ()).unwrap();
 
         let seed = [0xab; 32];
         let account = AccountId::ZERO;
@@ -1143,8 +1083,7 @@ mod tests {
 
         let network = Network::MainNetwork;
         let data_file = NamedTempFile::new().unwrap();
-        let mut db_data =
-            WalletDb::for_path(data_file.path(), network, test_clock(), test_rng()).unwrap();
+        let mut db_data = WalletDb::for_path(data_file.path(), network, test_clock()).unwrap();
         assert_matches!(init_wallet_db(&mut db_data, None), Ok(_));
 
         // Prior to adding any accounts, every seed phrase is relevant to the wallet.

@@ -815,6 +815,19 @@ impl LightWalletIndexer for FetchServiceSubscriber {
         })
     }
 
+    /// Send an update to the finality
+    async fn send_fiat_finality(&self, block_id: BlockId) -> Result<SendResponse, Self::Error> {
+        let tx_output = self
+            .fetcher
+            .send_fiat_finality(block_id)
+            .await;
+
+        Ok(SendResponse {
+            error_code: 0,
+            error_message: String::new(),
+        })
+    }
+
     /// Return the txids corresponding to the given t-address within the given block range
     async fn get_taddress_txids(
         &self,

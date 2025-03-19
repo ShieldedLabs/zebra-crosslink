@@ -24,9 +24,7 @@ use zip32::Scope;
 
 use crate::{error::SqliteClientError, AccountRef, AccountUuid, AddressRef, ReceivedNoteId, TxRef};
 
-use super::{
-    common::UnspentNoteMeta, get_account, get_account_ref, memo_repr, upsert_address, KeyScope,
-};
+use super::{get_account, get_account_ref, memo_repr, upsert_address, KeyScope};
 
 /// This trait provides a generalization over shielded output representations.
 pub(crate) trait ReceivedOrchardOutput {
@@ -272,19 +270,6 @@ pub(crate) fn ensure_address<
     } else {
         Ok(None)
     }
-}
-
-pub(crate) fn select_unspent_note_meta(
-    conn: &Connection,
-    chain_tip_height: BlockHeight,
-    wallet_birthday: BlockHeight,
-) -> Result<Vec<UnspentNoteMeta>, SqliteClientError> {
-    super::common::select_unspent_note_meta(
-        conn,
-        ShieldedProtocol::Orchard,
-        chain_tip_height,
-        wallet_birthday,
-    )
 }
 
 /// Records the specified shielded output as having been received.

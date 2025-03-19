@@ -892,5 +892,32 @@ pub mod compact_tx_streamer_client {
                 );
             self.inner.unary(req, path, codec).await
         }
+        /// Set the finality block by fiat.
+        pub async fn send_fiat_finality(
+            &mut self,
+            request: impl tonic::IntoRequest<super::BlockId>,
+        ) -> std::result::Result<tonic::Response<super::SendResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cash.z.wallet.sdk.rpc.CompactTxStreamer/SendFiatFinality",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "cash.z.wallet.sdk.rpc.CompactTxStreamer",
+                        "SendFiatFinality",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
     }
 }

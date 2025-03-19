@@ -379,6 +379,7 @@ pub trait LightWalletIndexer: Send + Sync + 'static {
 
     /// Submit the given transaction to the Zcash network
     async fn send_transaction(&self, request: RawTransaction) -> Result<SendResponse, Self::Error>;
+    async fn send_fiat_finality(&self, request: BlockId) -> Result<SendResponse, Self::Error>;
 
     /// Return the txids corresponding to the given t-address within the given block range
     async fn get_taddress_txids(

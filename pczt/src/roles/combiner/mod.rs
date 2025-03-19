@@ -1,7 +1,3 @@
-//! The Combiner role (anyone can execute).
-//!
-//! - Combines several PCZTs that represent the same transaction into a single PCZT.
-
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 

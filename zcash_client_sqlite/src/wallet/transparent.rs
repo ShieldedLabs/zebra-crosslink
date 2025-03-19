@@ -1,13 +1,8 @@
 //! Functions for transparent input support in the wallet.
 use std::collections::{HashMap, HashSet};
-use std::num::TryFromIntError;
-use std::ops::DerefMut;
 use std::rc::Rc;
-use std::time::{Duration, SystemTime, SystemTimeError};
 
 use nonempty::NonEmpty;
-use rand::RngCore;
-use rand_distr::Distribution;
 use rusqlite::types::Value;
 use rusqlite::OptionalExtension;
 use rusqlite::{named_params, Connection, Row};
@@ -19,10 +14,7 @@ use ::transparent::{
 };
 use zcash_address::unified::{Ivk, Typecode, Uivk};
 use zcash_client_backend::{
-    data_api::{
-        Account, AccountBalance, OutputStatusFilter, TransactionDataRequest,
-        TransactionStatusFilter,
-    },
+    data_api::{Account, AccountBalance, TransactionDataRequest},
     wallet::{TransparentAddressMetadata, WalletTransparentOutput},
 };
 use zcash_keys::{
@@ -38,7 +30,7 @@ use zcash_protocol::{
 };
 use zip32::Scope;
 
-use super::encoding::{decode_epoch_seconds, ReceiverFlags};
+use super::encoding::ReceiverFlags;
 use super::{
     account_birthday_internal, chain_tip_height,
     encoding::{decode_diversifier_index_be, encode_diversifier_index_be},
@@ -422,20 +414,9 @@ pub(crate) fn generate_gap_addresses<P: consensus::Parameters>(
     key_scope: KeyScope,
     gap_limits: &GapLimits,
     request: UnifiedAddressRequest,
-    require_key: bool,
 ) -> Result<(), SqliteClientError> {
     let account = get_account_internal(conn, params, account_id)?
         .ok_or_else(|| SqliteClientError::AccountUnknown)?;
-
-    if !account.uivk().has_transparent() {
-        if require_key {
-            return Err(SqliteClientError::AddressGeneration(
-                AddressGenerationError::KeyNotAvailable(Typecode::P2pkh),
-            ));
-        } else {
-            return Ok(());
-        }
-    }
 
     let gen_addrs = |key_scope: KeyScope, index: NonHardenedChildIndex| {
         Ok::<_, SqliteClientError>(match key_scope {
@@ -445,7 +426,7 @@ pub(crate) fn generate_gap_addresses<P: consensus::Parameters>(
                     .uivk()
                     .transparent()
                     .as_ref()
-                    .expect("presence of transparent key was checked above.")
+                    .ok_or(AddressGenerationError::KeyNotAvailable(Typecode::P2pkh))?
                     .derive_address(index)?;
                 (
                     ua.map_or_else(
@@ -467,7 +448,7 @@ pub(crate) fn generate_gap_addresses<P: consensus::Parameters>(
                 let internal_address = account
                     .ufvk()
                     .and_then(|k| k.transparent())
-                    .expect("presence of transparent key was checked above.")
+                    .ok_or(AddressGenerationError::KeyNotAvailable(Typecode::P2pkh))?
                     .derive_internal_ivk()?
                     .derive_address(index)?;
                 (
@@ -479,7 +460,7 @@ pub(crate) fn generate_gap_addresses<P: consensus::Parameters>(
                 let ephemeral_address = account
                     .ufvk()
                     .and_then(|k| k.transparent())
-                    .expect("presence of transparent key was checked above.")
+                    .ok_or(AddressGenerationError::KeyNotAvailable(Typecode::P2pkh))?
                     .derive_ephemeral_ivk()?
                     .derive_ephemeral_address(index)?;
                 (
@@ -1022,73 +1003,6 @@ pub(crate) fn put_received_transparent_utxo<P: consensus::Parameters>(
     )
 }
 
-/// An enumeration of the types of errors that can occur when scheduling an event to happen at a
-/// specific time.
-#[derive(Debug, Clone)]
-pub enum SchedulingError {
-    /// An error occurred in sampling a time offset using an exponential distribution.
-    Distribution(rand_distr::ExpError),
-    /// The system attempted to generate an invalid timestamp.
-    Time(SystemTimeError),
-    /// A generated duration was out of the range of valid integer values for durations.
-    OutOfRange(TryFromIntError),
-}
-
-impl std::fmt::Display for SchedulingError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self {
-            SchedulingError::Distribution(e) => {
-                write!(f, "Failure in sampling scheduling time: {}", e)
-            }
-            SchedulingError::Time(t) => write!(f, "Invalid system time: {}", t),
-            SchedulingError::OutOfRange(t) => write!(f, "Not a valid timestamp or duration: {}", t),
-        }
-    }
-}
-
-impl std::error::Error for SchedulingError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match &self {
-            SchedulingError::Distribution(_) => None,
-            SchedulingError::Time(t) => Some(t),
-            SchedulingError::OutOfRange(i) => Some(i),
-        }
-    }
-}
-
-impl From<rand_distr::ExpError> for SchedulingError {
-    fn from(value: rand_distr::ExpError) -> Self {
-        SchedulingError::Distribution(value)
-    }
-}
-
-impl From<SystemTimeError> for SchedulingError {
-    fn from(value: SystemTimeError) -> Self {
-        SchedulingError::Time(value)
-    }
-}
-
-impl From<TryFromIntError> for SchedulingError {
-    fn from(value: TryFromIntError) -> Self {
-        SchedulingError::OutOfRange(value)
-    }
-}
-
-/// Sample a random timestamp from an exponential distribution such that the expected value of the
-/// generated timestamp is `check_interval_seconds` after the provided `from_event` time.
-pub(crate) fn next_check_time<R: RngCore, D: DerefMut<Target = R>>(
-    mut rng: D,
-    from_event: SystemTime,
-    check_interval_seconds: u32,
-) -> Result<SystemTime, SchedulingError> {
-    // A λ parameter of 1/check_interval_seconds will result in a distribution with an expected
-    // value of `check_interval_seconds`.
-    let dist = rand_distr::Exp::new(1.0 / f64::from(check_interval_seconds))?;
-    let event_delay = dist.sample(rng.deref_mut()).round() as u64;
-
-    Ok(from_event + Duration::new(event_delay, 0))
-}
-
 /// Returns the vector of [`TransactionDataRequest`]s that represents the information needed by the
 /// wallet backend in order to be able to present a complete view of wallet history and memo data.
 pub(crate) fn transaction_data_requests<P: consensus::Parameters>(
@@ -1098,90 +1012,39 @@ pub(crate) fn transaction_data_requests<P: consensus::Parameters>(
     // `lightwalletd` will return an error for `GetTaddressTxids` requests having an end height
     // greater than the current chain tip height, so we take the chain tip height into account
     // here in order to make this pothole easier for clients of the API to avoid.
-    let chain_tip_height =
-        super::chain_tip_height(conn)?.ok_or(SqliteClientError::ChainHeightUnknown)?;
+    let chain_tip_height = super::chain_tip_height(conn)?;
 
     // We cannot construct address-based transaction data requests for the case where we cannot
     // determine the height at which to begin, so we require that either the target height or mined
     // height be set.
-    let mut spend_requests_stmt = conn.prepare_cached(
-        "SELECT
-            ssq.address,
-            IFNULL(t.target_height, t.mined_height)
+    let mut address_request_stmt = conn.prepare_cached(
+        "SELECT ssq.address, IFNULL(t.target_height, t.mined_height)
          FROM transparent_spend_search_queue ssq
          JOIN transactions t ON t.id_tx = ssq.transaction_id
          WHERE t.target_height IS NOT NULL
          OR t.mined_height IS NOT NULL",
     )?;
 
-    let spend_search_rows = spend_requests_stmt.query_and_then([], |row| {
-        let address = TransparentAddress::decode(params, &row.get::<_, String>(0)?)?;
-        let block_range_start = BlockHeight::from(row.get::<_, u32>(1)?);
-        let max_end_height = block_range_start + DEFAULT_TX_EXPIRY_DELTA + 1;
-        Ok::<TransactionDataRequest, SqliteClientError>(
-            TransactionDataRequest::TransactionsInvolvingAddress {
-                address,
-                block_range_start,
-                block_range_end: Some(std::cmp::min(chain_tip_height + 1, max_end_height)),
-                request_at: None,
-                tx_status_filter: TransactionStatusFilter::Mined,
-                output_status_filter: OutputStatusFilter::All,
-            },
-        )
-    })?;
-
-    // Since we don't want to interpret funds that are temporarily held by an ephemeral address in
-    // the course of creating ZIP 320 transaction pair as belonging to the wallet, we will perform
-    // ephemeral address checks only for addresses that do not have an unexpired transaction
-    // associated with them in the database. If, for some reason, the second transaction in a ZIP
-    // 320 pair fails to be mined after the first transaction in the pair succeeded, we will begin
-    // including the associated ephemeral address in the set to be checked for funds only after
-    // the transaction that spends from it has expired.
-    let mut ephemeral_check_stmt = conn.prepare_cached(
-        "SELECT
-            cached_transparent_receiver_address,
-            transparent_receiver_next_check_time
-         FROM addresses
-         WHERE key_scope = :ephemeral_key_scope
-         AND NOT EXISTS (
-            SELECT 'x'
-            FROM transparent_received_outputs tro
-            JOIN transactions t ON t.id_tx = tro.transaction_id
-            WHERE tro.address_id = addresses.id
-            AND t.expiry_height > :chain_tip_height
-         )",
-    )?;
-
-    let ephemeral_check_rows = ephemeral_check_stmt.query_and_then(
-        named_params! {
-            ":ephemeral_key_scope": KeyScope::Ephemeral.encode(),
-            ":chain_tip_height": u32::from(chain_tip_height)
-        },
-        |row| {
+    let result = address_request_stmt
+        .query_and_then([], |row| {
             let address = TransparentAddress::decode(params, &row.get::<_, String>(0)?)?;
-            let request_at = row
-                .get::<_, Option<i64>>(1)?
-                .map(decode_epoch_seconds)
-                .transpose()?;
+            let block_range_start = BlockHeight::from(row.get::<_, u32>(1)?);
+            let max_end_height = block_range_start + DEFAULT_TX_EXPIRY_DELTA + 1;
 
             Ok::<TransactionDataRequest, SqliteClientError>(
-                TransactionDataRequest::TransactionsInvolvingAddress {
+                TransactionDataRequest::SpendsFromAddress {
                     address,
-                    // We don't want these queries to leak anything about when the wallet created
-                    // or exposed the address, so we just query for all UTXOs for the address.
-                    block_range_start: BlockHeight::from(0),
-                    block_range_end: None,
-                    request_at,
-                    tx_status_filter: TransactionStatusFilter::All,
-                    output_status_filter: OutputStatusFilter::Unspent,
+                    block_range_start,
+                    block_range_end: Some(
+                        chain_tip_height
+                            .map_or(max_end_height, |h| std::cmp::min(h + 1, max_end_height)),
+                    ),
                 },
             )
-        },
-    )?;
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
 
-    spend_search_rows
-        .chain(ephemeral_check_rows)
-        .collect::<Result<Vec<_>, _>>()
+    Ok(result)
 }
 
 pub(crate) fn get_transparent_address_metadata<P: consensus::Parameters>(
@@ -1545,7 +1408,7 @@ mod tests {
             .update_chain_tip(birthday.height())
             .unwrap();
 
-        let check = |db: &WalletDb<_, _, _, _>, account_id| {
+        let check = |db: &WalletDb<_, _, _>, account_id| {
             eprintln!("checking {account_id:?}");
             assert_matches!(
                 find_gap_start(&db.conn, account_id, KeyScope::Ephemeral, db.gap_limits.ephemeral()), Ok(addr_index)

@@ -173,6 +173,8 @@ impl CompactTxStreamer for GrpcClient {
         This RPC has not been implemented as it is not currently used by zingolib. \
         If you require this RPC please open an issue or PR at the Zingo-Indexer github (https://github.com/zingolabs/zingo-indexer)."
         ping(Duration) -> PingResponse,
+        "send an update to the finality"
+        send_fiat_finality(BlockId) -> SendResponse,
     );
 
     /// Server streaming response type for the GetBlockRange method.

@@ -357,6 +357,17 @@ impl JsonRpcConnector {
         self.send_request("sendrawtransaction", params).await
     }
 
+    pub async fn send_fiat_finality(
+        &self,
+        block_id: zaino_proto::proto::service::BlockId,
+    ) -> Result<SendTransactionResponse, JsonRpcConnectorError> {
+        let mut hash = block_id.hash.clone();
+        hash.reverse();
+        let params = vec![format!("{}", hex::encode(hash))];
+println!("DEBUG: Forwarding parameters to Zebrad... params={:?}", &params,);
+        self.send_request("set_tfl_finality_by_hash", params).await
+    }
+
     /// Returns the requested block by hash or height, as a [`GetBlock`] JSON string.
     /// If the block is not in Zebra's state, returns
     /// [error code `-8`.](https://github.com/zcash/zcash/issues/5758)

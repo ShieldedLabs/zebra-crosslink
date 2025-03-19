@@ -31,7 +31,7 @@ message TxFilter {
      bytes hash = 3;        // transaction ID (hash, txid)
 }
 
-// RawTransaction contains the complete transaction data. It also optionally includes 
+// RawTransaction contains the complete transaction data. It also optionally includes
 // the block height in which the transaction was included, or, when returned
 // by GetMempoolStream(), the latest block height.
 //
@@ -211,4 +211,7 @@ service CompactTxStreamer {
     rpc GetLightdInfo(Empty) returns (LightdInfo) {}
     // Testing-only, requires lightwalletd --ping-very-insecure (do not enable in production)
     rpc Ping(Duration) returns (PingResponse) {}
+
+    // Set the finality block by fiat.
+    rpc SendFiatFinality(BlockID) returns (SendResponse) {}
 }

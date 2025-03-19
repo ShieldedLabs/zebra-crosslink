@@ -212,6 +212,18 @@ impl StateService {
             }
         }
     }
+
+    async fn send_fiat_finality(
+        &self,
+        block_id: zaino_proto::proto::service::BlockId,
+    ) -> Result<SentTransactionHash, StateServiceError> {
+        // Offload to the json rpc connector, as ReadStateService doesn't yet interface with the mempool
+        self.rpc_client
+            .send_fiat_finality(block_id)
+            .await
+            .map(SentTransactionHash::from)
+            .map_err(StateServiceError::JsonRpcConnectorError)
+    }
 }
 
 #[async_trait]

@@ -1,7 +1,3 @@
-//! The Transaction Extractor role (anyone can execute).
-//!
-//! - Creates bindingSig and extracts the final transaction.
-
 use core::marker::PhantomData;
 use rand_core::OsRng;
 

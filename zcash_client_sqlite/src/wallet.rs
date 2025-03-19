@@ -69,7 +69,7 @@ use std::{
     convert::TryFrom,
     io::{self, Cursor},
     num::NonZeroU32,
-    ops::{Range, RangeInclusive},
+    ops::RangeInclusive,
     time::SystemTime,
 };
 
@@ -88,7 +88,7 @@ use zcash_address::ZcashAddress;
 use zcash_client_backend::{
     data_api::{
         scanning::{ScanPriority, ScanRange},
-        Account as _, AccountBalance, AccountBirthday, AccountPurpose, AccountSource, AddressInfo,
+        Account as _, AccountBalance, AccountBirthday, AccountPurpose, AccountSource,
         BlockMetadata, DecryptedTransaction, Progress, Ratio, SentTransaction,
         SentTransactionOutput, TransactionDataRequest, TransactionStatus, WalletSummary,
         Zip32Derivation, SAPLING_SHARD_HEIGHT,
@@ -623,7 +623,6 @@ pub(crate) fn add_account<P: consensus::Parameters>(
             key_scope,
             gap_limits,
             UnifiedAddressRequest::unsafe_custom(Allow, Allow, Require),
-            false,
         )?;
     }
 
@@ -671,7 +670,6 @@ pub(crate) fn get_next_available_address<P: consensus::Parameters, C: Clock>(
                 KeyScope::EXTERNAL,
                 gap_limits,
                 UnifiedAddressRequest::unsafe_custom(Allow, Allow, Require),
-                true,
             )?;
 
             // Select indices from the transparent gap limit that are available for use as
@@ -759,54 +757,6 @@ pub(crate) fn get_next_available_address<P: consensus::Parameters, C: Clock>(
     )?;
 
     Ok(Some((addr, diversifier_index)))
-}
-
-pub(crate) fn list_addresses<P: consensus::Parameters>(
-    conn: &rusqlite::Connection,
-    params: &P,
-    account_uuid: AccountUuid,
-) -> Result<Vec<AddressInfo>, SqliteClientError> {
-    let mut addrs = vec![];
-
-    let mut stmt_addrs = conn.prepare(
-        "SELECT address, diversifier_index_be, key_scope
-         FROM addresses
-         JOIN accounts ON accounts.id = addresses.account_id
-         WHERE accounts.uuid = :account_uuid
-         AND exposed_at_height IS NOT NULL
-         ORDER BY exposed_at_height ASC, diversifier_index_be ASC",
-    )?;
-
-    let mut rows = stmt_addrs.query(named_params![
-        ":account_uuid": account_uuid.0,
-    ])?;
-
-    while let Some(row) = rows.next()? {
-        let addr_str: String = row.get(0)?;
-        let di_vec: Vec<u8> = row.get(1)?;
-        let _scope = KeyScope::decode(row.get(2)?)?;
-
-        let addr = Address::decode(params, &addr_str).ok_or_else(|| {
-            SqliteClientError::CorruptedData("Not a valid Zcash recipient address".to_owned())
-        })?;
-        let diversifier_index = decode_diversifier_index_be(&di_vec)?;
-        // Sapling and Unified addresses always have external scope.
-        #[cfg(feature = "transparent-inputs")]
-        let transparent_scope =
-            matches!(addr, Address::Transparent(_) | Address::Tex(_)).then(|| _scope.into());
-
-        addrs.push(
-            AddressInfo::from_parts(
-                addr,
-                diversifier_index,
-                #[cfg(feature = "transparent-inputs")]
-                transparent_scope,
-            )
-            .expect("valid"),
-        );
-    }
-
-    Ok(addrs)
 }
 
 pub(crate) fn get_last_generated_address_matching<P: consensus::Parameters>(
@@ -976,21 +926,11 @@ pub(crate) fn upsert_address<P: consensus::Parameters>(
     )?;
 
     #[cfg(feature = "transparent-inputs")]
-    let (transparent_child_index, cached_taddr) = {
-        let idx = NonHardenedChildIndex::try_from(diversifier_index)
-            .ok()
-            .map(|i| i.index());
-
-        // This upholds the `transparent_index_consistency` check on the `addresses` table.
-        match (idx, address.transparent()) {
-            (Some(idx), Some(r)) => Ok((Some(idx), Some(r.encode(params)))),
-            (_, None) => Ok((None, None)),
-            (None, Some(addr)) => Err(SqliteClientError::AddressNotRecognized(*addr)),
-        }
-    }?;
-
+    let transparent_child_index = NonHardenedChildIndex::try_from(diversifier_index)
+        .ok()
+        .map(|i| i.index());
     #[cfg(not(feature = "transparent-inputs"))]
-    let (transparent_child_index, cached_taddr): (Option<u32>, Option<String>) = (None, None);
+    let transparent_child_index: Option<u32> = None;
 
     stmt.query_row(
         named_params![
@@ -1000,14 +940,13 @@ pub(crate) fn upsert_address<P: consensus::Parameters>(
             ":key_scope": KeyScope::EXTERNAL.encode(),
             ":address": &address.encode(params),
             ":transparent_child_index": transparent_child_index,
-            ":cached_transparent_receiver_address": &cached_taddr,
+            ":cached_transparent_receiver_address": &address.transparent().map(|r| r.encode(params)),
             ":exposed_at_height": exposed_at_height.map(u32::from),
             ":force_update_address": force_update_address,
             ":receiver_flags": ReceiverFlags::from(address).bits()
         ],
-        |row| row.get(0).map(AddressRef),
-    )
-    .map_err(SqliteClientError::from)
+        |row| row.get(0).map(AddressRef)
+    ).map_err(SqliteClientError::from)
 }
 
 #[cfg(feature = "transparent-inputs")]
@@ -2587,13 +2526,12 @@ pub(crate) fn get_max_height_hash(
     .optional()
 }
 
-pub(crate) fn store_transaction_to_be_sent<P: consensus::Parameters>(
-    conn: &rusqlite::Transaction,
-    params: &P,
+pub(crate) fn store_transaction_to_be_sent<P: consensus::Parameters, CL>(
+    wdb: &mut WalletDb<SqlTransaction<'_>, P, CL>,
     sent_tx: &SentTransaction<AccountUuid>,
 ) -> Result<(), SqliteClientError> {
     let tx_ref = put_tx_data(
-        conn,
+        wdb.conn.0,
         sent_tx.tx(),
         Some(sent_tx.fee_amount()),
         Some(sent_tx.created()),
@@ -2613,7 +2551,7 @@ pub(crate) fn store_transaction_to_be_sent<P: consensus::Parameters>(
     if let Some(bundle) = sent_tx.tx().sapling_bundle() {
         detectable_via_scanning = true;
         for spend in bundle.shielded_spends() {
-            sapling::mark_sapling_note_spent(conn, tx_ref, spend.nullifier())?;
+            sapling::mark_sapling_note_spent(wdb.conn.0, tx_ref, spend.nullifier())?;
         }
     }
     if let Some(_bundle) = sent_tx.tx().orchard_bundle() {
@@ -2621,7 +2559,7 @@ pub(crate) fn store_transaction_to_be_sent<P: consensus::Parameters>(
         {
             detectable_via_scanning = true;
             for action in _bundle.actions() {
-                orchard::mark_orchard_note_spent(conn, tx_ref, action.nullifier())?;
+                orchard::mark_orchard_note_spent(wdb.conn.0, tx_ref, action.nullifier())?;
             }
         }
 
@@ -2631,11 +2569,17 @@ pub(crate) fn store_transaction_to_be_sent<P: consensus::Parameters>(
 
     #[cfg(feature = "transparent-inputs")]
     for utxo_outpoint in sent_tx.utxos_spent() {
-        transparent::mark_transparent_utxo_spent(conn, tx_ref, utxo_outpoint)?;
+        transparent::mark_transparent_utxo_spent(wdb.conn.0, tx_ref, utxo_outpoint)?;
     }
 
     for output in sent_tx.outputs() {
-        insert_sent_output(conn, params, tx_ref, *sent_tx.account_id(), output)?;
+        insert_sent_output(
+            wdb.conn.0,
+            &wdb.params,
+            tx_ref,
+            *sent_tx.account_id(),
+            output,
+        )?;
 
         match output.recipient() {
             Recipient::External {
@@ -2652,8 +2596,8 @@ pub(crate) fn store_transaction_to_be_sent<P: consensus::Parameters>(
             } => match note.as_ref() {
                 Note::Sapling(note) => {
                     sapling::put_received_note(
-                        conn,
-                        params,
+                        wdb.conn.0,
+                        &wdb.params,
                         &DecryptedOutput::new(
                             output.output_index(),
                             note.clone(),
@@ -2671,8 +2615,8 @@ pub(crate) fn store_transaction_to_be_sent<P: consensus::Parameters>(
                 #[cfg(feature = "orchard")]
                 Note::Orchard(note) => {
                     orchard::put_received_note(
-                        conn,
-                        params,
+                        wdb.conn.0,
+                        &wdb.params,
                         &DecryptedOutput::new(
                             output.output_index(),
                             *note,
@@ -2696,11 +2640,15 @@ pub(crate) fn store_transaction_to_be_sent<P: consensus::Parameters>(
             } => {
                 // First check to verify that creation of this output does not result in reuse of
                 // an ephemeral address.
-                transparent::check_ephemeral_address_reuse(conn, params, ephemeral_address)?;
+                transparent::check_ephemeral_address_reuse(
+                    wdb.conn.0,
+                    &wdb.params,
+                    ephemeral_address,
+                )?;
 
                 transparent::put_transparent_output(
-                    conn,
-                    &params,
+                    wdb.conn.0,
+                    &wdb.params,
                     outpoint,
                     &TxOut {
                         value: output.value(),
@@ -2718,7 +2666,7 @@ pub(crate) fn store_transaction_to_be_sent<P: consensus::Parameters>(
     // at present for fully transparent transactions, because any transaction with a shielded
     // component will be detected via ordinary chain scanning and/or nullifier checking.
     if !detectable_via_scanning {
-        queue_tx_retrieval(conn, std::iter::once(sent_tx.tx().txid()), None)?;
+        queue_tx_retrieval(wdb.conn.0, std::iter::once(sent_tx.tx().txid()), None)?;
     }
 
     Ok(())
@@ -2921,7 +2869,6 @@ pub(crate) fn truncate_to_height<P: consensus::Parameters>(
             conn: SqlTransaction(conn),
             params: params.clone(),
             clock: (),
-            rng: (),
             #[cfg(feature = "transparent-inputs")]
             gap_limits: *gap_limits,
         };
@@ -3456,7 +3403,6 @@ pub(crate) fn store_decrypted_tx<P: consensus::Parameters>(
             key_scope,
             gap_limits,
             UnifiedAddressRequest::unsafe_custom(Allow, Allow, Require),
-            false,
         )?;
     }
 
@@ -4062,57 +4008,6 @@ pub(crate) fn prune_nullifier_map(
     stmt_delete_locators.execute(named_params![":block_height": u32::from(block_height)])?;
 
     Ok(())
-}
-
-pub(crate) fn get_block_range(
-    conn: &rusqlite::Connection,
-    protocol: ShieldedProtocol,
-    commitment_tree_address: incrementalmerkletree::Address,
-) -> Result<Option<Range<BlockHeight>>, SqliteClientError> {
-    let prefix = match protocol {
-        ShieldedProtocol::Sapling => "sapling",
-        ShieldedProtocol::Orchard => "orchard",
-    };
-    let mut stmt = conn.prepare_cached(&format!(
-        "SELECT MIN(height), MAX(height), MAX({prefix}_commitment_tree_size)
-         FROM blocks
-         WHERE {prefix}_commitment_tree_size BETWEEN :min_tree_size AND :max_tree_size"
-    ))?;
-
-    stmt.query_row(
-        // BETWEEN is inclusive on both ends. However, we are comparing commitment tree sizes
-        // to commitment tree positions, so we must add one to the start, and we do not subtract
-        // one from the end.
-        named_params! {
-            ":min_tree_size": u64::from(commitment_tree_address.position_range_start()) + 1,
-            ":max_tree_size": u64::from(commitment_tree_address.position_range_end()),
-        },
-        |row| {
-            // The first block to be scanned is known to contain the start of the address range in
-            // question because the tree size we compared against is measured as of the end of the
-            // block.
-            let min_height = row.get::<_, Option<u32>>(0)?.map(BlockHeight::from_u32);
-            let max_height_inclusive = row.get::<_, Option<u32>>(1)?.map(BlockHeight::from_u32);
-            let end_offset = row.get::<_, Option<u64>>(2)?.map(|max_height_tree_size| {
-                // If the tree size at the end of the max-height block is less than the
-                // end-exclusive maximum position of the address range, this means that the end of
-                // the subtree referred to by that address is somewhere in the next block, so we
-                // need to rescan an extra block to ensure that we have observed all of the note
-                // commitments that aggregate up to that address.
-                if max_height_tree_size < u64::from(commitment_tree_address.position_range_end()) {
-                    1
-                } else {
-                    0
-                }
-            });
-
-            Ok(min_height
-                .zip(max_height_inclusive)
-                .zip(end_offset)
-                .map(|((min, max_inclusive), offset)| min..(max_inclusive + offset + 1)))
-        },
-    )
-    .map_err(SqliteClientError::from)
 }
 
 #[cfg(any(test, feature = "test-dependencies"))]

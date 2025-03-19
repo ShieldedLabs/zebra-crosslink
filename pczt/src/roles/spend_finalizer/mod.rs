@@ -1,7 +1,3 @@
-//! The Spend Finalizer role (anyone can execute).
-//!
-//! - Combines partial transparent signatures into `script_sig`s.
-
 use crate::Pczt;
 
 pub struct SpendFinalizer {

@@ -69,7 +69,7 @@ use incrementalmerkletree::{frontier::Frontier, Retention};
 use shardtree::{error::ShardTreeError, store::ShardStore, ShardTree};
 
 use zcash_keys::{
-    address::{Address, UnifiedAddress},
+    address::UnifiedAddress,
     keys::{
         UnifiedAddressRequest, UnifiedFullViewingKey, UnifiedIncomingViewingKey, UnifiedSpendingKey,
     },
@@ -97,19 +97,14 @@ use crate::{
 use {
     crate::wallet::TransparentAddressMetadata,
     std::ops::Range,
-    std::time::SystemTime,
-    transparent::{
-        address::TransparentAddress,
-        bundle::OutPoint,
-        keys::{NonHardenedChildIndex, TransparentKeyScope},
-    },
+    transparent::{address::TransparentAddress, bundle::OutPoint, keys::NonHardenedChildIndex},
 };
 
 #[cfg(feature = "test-dependencies")]
 use ambassador::delegatable_trait;
 
 #[cfg(any(test, feature = "test-dependencies"))]
-use zcash_protocol::consensus::NetworkUpgrade;
+use {zcash_keys::address::Address, zcash_protocol::consensus::NetworkUpgrade};
 
 pub mod chain;
 pub mod error;
@@ -501,53 +496,6 @@ impl<A: Copy> Account for (A, UnifiedIncomingViewingKey) {
     }
 }
 
-/// Information about an address in the wallet.
-pub struct AddressInfo {
-    address: Address,
-    diversifier_index: DiversifierIndex,
-    #[cfg(feature = "transparent-inputs")]
-    transparent_key_scope: Option<TransparentKeyScope>,
-}
-
-impl AddressInfo {
-    /// Constructs an `AddressInfo` from its constituent parts.
-    pub fn from_parts(
-        address: Address,
-        diversifier_index: DiversifierIndex,
-        #[cfg(feature = "transparent-inputs")] transparent_key_scope: Option<TransparentKeyScope>,
-    ) -> Option<Self> {
-        // Only allow `transparent_key_scope` to be set for transparent addresses.
-        #[cfg(feature = "transparent-inputs")]
-        let valid = transparent_key_scope.is_none()
-            || matches!(address, Address::Transparent(_) | Address::Tex(_));
-        #[cfg(not(feature = "transparent-inputs"))]
-        let valid = true;
-
-        valid.then_some(Self {
-            address,
-            diversifier_index,
-            #[cfg(feature = "transparent-inputs")]
-            transparent_key_scope,
-        })
-    }
-
-    /// Returns the address this information is about.
-    pub fn address(&self) -> &Address {
-        &self.address
-    }
-
-    /// Returns the diversifier index the address was derived at.
-    pub fn diversifier_index(&self) -> DiversifierIndex {
-        self.diversifier_index
-    }
-
-    /// Returns the key scope if this is a transparent address.
-    #[cfg(feature = "transparent-inputs")]
-    pub fn transparent_key_scope(&self) -> Option<TransparentKeyScope> {
-        self.transparent_key_scope
-    }
-}
-
 /// A polymorphic ratio type, usually used for rational numbers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Ratio<T> {
@@ -748,31 +696,6 @@ pub struct SpendableNotes<NoteRef> {
     orchard: Vec<ReceivedNote<NoteRef, orchard::note::Note>>,
 }
 
-/// A type describing the mined-ness of transactions that should be returned in response to a
-/// [`TransactionDataRequest`].
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg(feature = "transparent-inputs")]
-pub enum TransactionStatusFilter {
-    /// Only mined transactions should be returned.
-    Mined,
-    /// Only mempool transactions should be returned.
-    Mempool,
-    /// Both mined transactions and transactions in the mempool should be returned.
-    All,
-}
-
-/// A type used to filter transactions to be returned in response to a [`TransactionDataRequest`],
-/// in terms of the spentness of the transaction's transparent outputs.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg(feature = "transparent-inputs")]
-pub enum OutputStatusFilter {
-    /// Only transactions that have currently-unspent transparent outputs should be returned.
-    Unspent,
-    /// All transactions corresponding to the data request should be returned, irrespective of
-    /// whether or not those transactions produce transparent outputs that are currently unspent.
-    All,
-}
-
 /// A request for transaction data enhancement, spentness check, or discovery
 /// of spends from a given transparent address within a specific block range.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -817,30 +740,10 @@ pub enum TransactionDataRequest {
     ///
     /// [`GetTaddressTxids`]: crate::proto::service::compact_tx_streamer_client::CompactTxStreamerClient::get_taddress_txids
     #[cfg(feature = "transparent-inputs")]
-    TransactionsInvolvingAddress {
-        /// The address to request transactions and/or UTXOs for.
+    SpendsFromAddress {
         address: TransparentAddress,
-        /// Only transactions mined at heights greater than or equal to this height should be
-        /// returned.
         block_range_start: BlockHeight,
-        /// Only transactions mined at heights less than this height should be returned.
         block_range_end: Option<BlockHeight>,
-        /// If a `request_at` time is set, the caller evaluating this request should attempt to
-        /// retrieve transaction data related to the specified address at a time that is as close
-        /// as practical to the specified instant, and in a fashion that decorrelates this request
-        /// to a light wallet server from other requests made by the same caller.
-        ///
-        /// This may be ignored by callers that are able to satisfy the request without exposing
-        /// correlations between addresses to untrusted parties; for example, a wallet application
-        /// that uses a private, trusted-for-privacy supplier of chain data can safely ignore this
-        /// field.
-        request_at: Option<SystemTime>,
-        /// The caller should respond to this request only with transactions that conform to the
-        /// specified transaction status filter.
-        tx_status_filter: TransactionStatusFilter,
-        /// The caller should respond to this request only with transactions containing outputs
-        /// that conform to the specified output status filter.
-        output_status_filter: OutputStatusFilter,
     },
 }
 
@@ -1321,9 +1224,6 @@ pub trait WalletRead {
         &self,
         ufvk: &UnifiedFullViewingKey,
     ) -> Result<Option<Self::Account>, Self::Error>;
-
-    /// Returns information about every address tracked for this account.
-    fn list_addresses(&self, account: Self::AccountId) -> Result<Vec<AddressInfo>, Self::Error>;
 
     /// Returns the most recently generated unified address for the specified account that conforms
     /// to the specified address filter, if the account identifier specified refers to a valid
@@ -2487,9 +2387,8 @@ pub trait WalletWrite: WalletRead {
     ///
     /// Returns `Ok(None)` in the case that it is not possible to generate an address conforming
     /// to the provided request at the specified diversifier index. Such a result might arise from
-    /// the diversifier index not being valid for a [`ReceiverRequirement::Require`]'ed receiver.
-    /// Some implementations of this trait may return `Err(_)` in some cases to expose more
-    /// information, which is only accessible in a backend-specific context.
+    /// either a key not being available or the diversifier index not being valid for a
+    /// [`ReceiverRequirement::Require`]'ed receiver.
     ///
     /// Address generation should fail if an address has already been exposed for the given
     /// diversifier index and the given request produced an address having different receivers than
