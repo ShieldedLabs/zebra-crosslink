@@ -10,6 +10,8 @@
 ![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)
 
 - [About](#about)
+  - [About `zebra-crosslink`](#about-zebra-crosslink)
+  - [About Upstream Zebra](#about-upstream-zebra)
 - [Getting Started](#getting-started)
   - [Docker](#docker)
   - [Manual Build](#manual-build)
@@ -22,6 +24,16 @@
 - [License](#license)
 
 ## About
+
+### About `zebra-crosslink`
+
+`zebra-crosslink` is the Shielded Labs implementation of *Crosslink*, a hybrid PoW/PoS consensus protocol for [Zcash](https://z.cash/).
+
+**Status:** This codebase is an early, incomplete prototype, and not suitable for use by anyone other than motivated developers who want to get involved. As the project progresses, this will become a complete implementation of a Crosslink-aware fullnode.
+
+See `./book/src/crosslink.md` for in-progress documentation on this implementation.
+
+### About Upstream Zebra
 
 [Zebra](https://zebra.zfnd.org/) is a Zcash full-node written in Rust.
 
