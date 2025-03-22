@@ -72,6 +72,7 @@ ENV GID=${GID}
 ARG USER
 ENV USER=${USER}
 ARG HOME
+ENV HOME=${HOME}
 
 RUN addgroup --quiet --gid ${GID} ${USER} && \
     adduser --quiet --gid ${GID} --uid ${UID} --home ${HOME} ${USER} --disabled-password --gecos ""
@@ -193,6 +194,7 @@ ENV GID=${GID}
 ARG USER
 ENV USER=${USER}
 ARG HOME
+ENV HOME=${HOME}
 
 RUN addgroup --quiet --gid ${GID} ${USER} && \
     adduser --quiet --gid ${GID} --uid ${UID} --home ${HOME} ${USER} --disabled-password --gecos ""
