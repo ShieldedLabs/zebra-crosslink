@@ -78,6 +78,10 @@ pub mod test_format;
 #[cfg(feature = "viz_gui")]
 pub mod viz;
 
+// TODO: feature = "viz"
+// #[cfg(feature = "macroquad")]
+pub mod viz;
+
 use crate::service::{
     TFLServiceCalls, TFLServiceError, TFLServiceHandle, TFLServiceRequest, TFLServiceResponse,
 };

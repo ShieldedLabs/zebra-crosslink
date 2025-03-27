@@ -41,6 +41,10 @@ rand = "0.8"
 serde_json = "1.0"
 sha3 = "0.10"
 
+# TODO: "viz" feature with optional crates
+macroquad = "0.4.14"
+# TODO: macroquad-profiler
+
 [dependencies.malachitebft-app-channel]
 version = "0.0.1"
 # This adds the `informalsystems-malachitebft-app-channel` as a dependency, but exposes it
