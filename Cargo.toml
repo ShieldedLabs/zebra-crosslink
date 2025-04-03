@@ -12,8 +12,10 @@ members = [
         "zebra-utils",
         "zebra-scan",
         "zebra-grpc",
+        "zebra-crosslink",
+        "zebra-bftblock",
         "tower-batch-control",
-        "tower-fallback", "zebra-crosslink",
+        "tower-fallback",
 ]
 
 # Use the edition 2021 dependency resolver in the workspace, to match the crates
