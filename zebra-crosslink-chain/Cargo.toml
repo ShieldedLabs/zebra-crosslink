@@ -1,0 +1,9 @@
+[package]
+name = "zebra-crosslink-chain"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+zebra-chain = { path = "../zebra-chain" }
+static_assertions.workspace = true
+thiserror.workspace = true

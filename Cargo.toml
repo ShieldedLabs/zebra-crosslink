@@ -1,3 +1,13 @@
+# Common crate metadata:
+[workspace.package]
+authors = ["Zcash Foundation <zebra@zfnd.org>"]
+edition = "2021"
+homepage = "https://zfnd.org/zebra/"
+keywords = ["zebra", "zcash"]
+license = "MIT OR Apache-2.0"
+readme = "../README.md"
+repository = "https://github.com/ZcashFoundation/zebra"
+
 [workspace]
 members = [
         "zebrad",
@@ -13,7 +23,7 @@ members = [
         "zebra-scan",
         "zebra-grpc",
         "zebra-crosslink",
-        "zebra-bftblock",
+        "zebra-crosslink-chain",
         "tower-batch-control",
         "tower-fallback",
 ]

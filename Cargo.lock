@@ -8304,10 +8304,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "zebra-bftblock"
-version = "0.1.0"
-
-[[package]]
 name = "zebra-chain"
 version = "1.0.0-beta.45"
 dependencies = [
@@ -8453,6 +8449,15 @@ dependencies = [
  "tracing-subscriber",
  "zebra-chain",
  "zebra-state",
+]
+
+[[package]]
+name = "zebra-crosslink-chain"
+version = "0.1.0"
+dependencies = [
+ "static_assertions",
+ "thiserror 2.0.11",
+ "zebra-chain",
 ]
 
 [[package]]
