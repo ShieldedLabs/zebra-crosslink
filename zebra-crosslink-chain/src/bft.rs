@@ -17,6 +17,18 @@ where
     ph: PhantomData<ZCP>,
 }
 
+impl<ZCP> BftPayload<ZCP>
+where
+    ZCP: ZcashCrosslinkParameters,
+{
+    /// Refer to the [bcblock::Header] that is the finalization candidate for this payload
+    ///
+    /// **UNVERIFIED:** The finalization_candidate of a final [BftPayload] is finalized.
+    pub fn finalization_candidate(&self) -> &bcblock::Header {
+        &self.headers[ZCP::BC_CONFIRMATION_DEPTH_SIGMA - 1]
+    }
+}
+
 impl<ZCP> TryFrom<Vec<bcblock::Header>> for BftPayload<ZCP>
 where
     ZCP: ZcashCrosslinkParameters,
