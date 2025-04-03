@@ -8,4 +8,4 @@
 mod bft;
 pub mod params;
 
-pub use crate::bft::BftPayload;
+pub use crate::bft::{BftPayload, InvalidBftPayload};
