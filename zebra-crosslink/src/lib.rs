@@ -113,6 +113,7 @@ async fn block_height_hash_from_hash(
     }
 }
 
+#[allow(dead_code)]
 async fn block_header_from_hash(
     call: &TFLServiceCalls,
     hash: BlockHash,
@@ -126,6 +127,7 @@ async fn block_header_from_hash(
     }
 }
 
+#[allow(dead_code)]
 async fn block_prev_hash_from_hash(call: &TFLServiceCalls, hash: BlockHash) -> Option<BlockHash> {
     if let Ok(ReadStateResponse::BlockHeader { header, .. }) =
         (call.read_state)(ReadStateRequest::BlockHeader(hash.into())).await
@@ -1139,6 +1141,7 @@ fn tfl_dump_blocks(blocks: &[BlockHash], infos: &[Option<Arc<Block>>]) {
     }
 }
 
+#[allow(dead_code)]
 async fn tfl_dump_block_sequence(
     call: &TFLServiceCalls,
     start_hash: BlockHash,

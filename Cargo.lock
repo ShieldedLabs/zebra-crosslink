@@ -8452,6 +8452,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "zebra-crosslink-chain"
+version = "0.1.0"
+dependencies = [
+ "static_assertions",
+ "thiserror 2.0.11",
+ "zebra-chain",
+]
+
+[[package]]
 name = "zebra-grpc"
 version = "0.1.0-alpha.12"
 dependencies = [
