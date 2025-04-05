@@ -22,7 +22,7 @@ env:
   CARGO_INCREMENTAL: ${{ vars.CARGO_INCREMENTAL }} # defaults to 0
 
 jobs:
-  test-no-run:
+  test:
     name: Crosslink Tests
     runs-on: ubuntu-latest-xl
     steps:
@@ -50,7 +50,10 @@ jobs:
           version: 1.0
       - run: rustup toolchain install stable --profile minimal
       - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --check
+      - name: Static Analysis
+        run: |
+          cargo fmt --check
+          cargo clippy --locked --workspace
       - name: Ensure Crosslink docs generate
         run: cd zebra-crosslink && cargo doc --lib
       - name: Ensure all docs generate

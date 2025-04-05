@@ -1,5 +1,7 @@
 //! Internal Zebra service for managing the Crosslink consensus protocol
 
+#![allow(clippy::print_stdout)]
+
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
@@ -113,7 +115,7 @@ async fn block_height_hash_from_hash(
     }
 }
 
-async fn block_header_from_hash(
+async fn _block_header_from_hash(
     call: &TFLServiceCalls,
     hash: BlockHash,
 ) -> Option<Arc<BlockHeader>> {
@@ -126,7 +128,7 @@ async fn block_header_from_hash(
     }
 }
 
-async fn block_prev_hash_from_hash(call: &TFLServiceCalls, hash: BlockHash) -> Option<BlockHash> {
+async fn _block_prev_hash_from_hash(call: &TFLServiceCalls, hash: BlockHash) -> Option<BlockHash> {
     if let Ok(ReadStateResponse::BlockHeader { header, .. }) =
         (call.read_state)(ReadStateRequest::BlockHeader(hash.into())).await
     {
@@ -999,7 +1001,7 @@ async fn tfl_block_sequence(
     let mut c = 0;
     loop {
         if chunk_i >= chunk.len() {
-            let chunk_start_hash = if chunk.len() == 0 {
+            let chunk_start_hash = if !chunk.is_empty() {
                 &init_hash
             } else {
                 // NOTE: as the new first element, this won't be repeated
@@ -1013,7 +1015,7 @@ async fn tfl_block_sequence(
             .await;
 
             if let Ok(ReadStateResponse::BlockHashes(chunk_hashes)) = res {
-                if c == 0 && include_start_hash && chunk_hashes.len() > 0 {
+                if c == 0 && include_start_hash && !chunk_hashes.is_empty() {
                     assert_eq!(
                         chunk_hashes[0], start_hash,
                         "first hash is not the one requested"
@@ -1139,7 +1141,7 @@ fn tfl_dump_blocks(blocks: &[BlockHash], infos: &[Option<Arc<Block>>]) {
     }
 }
 
-async fn tfl_dump_block_sequence(
+async fn _tfl_dump_block_sequence(
     call: &TFLServiceCalls,
     start_hash: BlockHash,
     final_hash: Option<BlockHash>,

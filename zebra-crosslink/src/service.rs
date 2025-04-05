@@ -120,7 +120,6 @@ pub(crate) type ReadStateServiceProcedure = Arc<
 /// - `read_state_service_call` takes a [`ReadStateRequest`] as input and returns a [`ReadStateResponse`] as output.
 ///
 /// [`TFLServiceHandle`] is a shallow handle that can be cloned and passed between threads.
-
 pub fn spawn_new_tfl_service(
     read_state_service_call: ReadStateServiceProcedure,
 ) -> (TFLServiceHandle, JoinHandle<Result<(), String>>) {

@@ -1443,7 +1443,9 @@ where
             if let Ok(sink) = sink.accept().await {
                 // let stream = futures::stream::iter(["one", "two", "three"]);
                 // sink.pipe_from_stream(stream).await;
-                let _ = sink.send(jsonrpsee::SubscriptionMessage::from("RPC: hi".to_string()));
+                let _ = sink
+                    .send(jsonrpsee::SubscriptionMessage::from("RPC: hi".to_string()))
+                    .await;
                 // TODO: await/poll
                 this.stream_tfl_new_final_block_hash().await;
             }
