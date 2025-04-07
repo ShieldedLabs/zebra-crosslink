@@ -705,6 +705,10 @@ async fn tfl_service_main_loop(internal_handle: TFLServiceHandle) -> Result<(), 
     let (mut rng, my_private_key, my_public_key) =
         rng_private_public_key_from_address(&public_ip_string);
 
+    let rt = tokio::runtime::Handle::current();
+    let viz_tfl_handle = internal_handle.clone();
+    tokio::task::spawn_blocking(move || rt.block_on(viz::service_viz_requests(viz_tfl_handle)));
+
     let initial_validator_set = {
         let mut array = Vec::with_capacity(config.malachite_peers.len());
 
