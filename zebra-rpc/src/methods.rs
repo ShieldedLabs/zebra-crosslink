@@ -269,6 +269,22 @@ pub trait Rpc {
     #[method(name = "is_tfl_activated")]
     async fn is_tfl_activated(&self) -> Option<bool>;
 
+    /// Placeholder function for checking whether the TFL has been activated.
+    ///
+    /// zcashd reference: none
+    /// method: post
+    /// tags: tfl
+    ///
+    /// ## Example Usage
+    /// ```shell
+    /// curl -X POST -H "Content-Type: application/json" -d \
+    /// '{ "jsonrpc": "2.0", "method": "is_tfl_activated", "params": [], "id": 1 }' \
+    /// http://127.0.0.1:8232
+    /// ```
+    /// *(The `address:port` matches the value in `zebrad.toml > [rpc] > listen_addr`)*
+    #[method(name = "is_tfl_activated")]
+    async fn is_tfl_activated(&self) -> Option<bool>;
+
     /// Placeholder function for getting finalizer roster.
     ///
     /// zcashd reference: none
