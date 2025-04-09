@@ -62,14 +62,14 @@ viz_gui = ["macroquad", "macroquad-profiler", "image", "miniquad"]
 audio   = ["macroquad/audio"]
 
 [dependencies.malachitebft-app-channel]
-version = "0.0.1"
+tag = "v0.0.1"
 # This adds the `informalsystems-malachitebft-app-channel` as a dependency, but exposes it
 # under `malachitebft_app_channel` instead of its full package name.
 git = "https://git@github.com/informalsystems/malachite.git"
 package = "informalsystems-malachitebft-app-channel"
 
 [dependencies.malachitebft-config]
-version = "0.0.1"
+tag = "v0.0.1"
 git = "https://git@github.com/informalsystems/malachite.git"
 package = "informalsystems-malachitebft-config"
 
