@@ -1277,7 +1277,6 @@ async fn rpc_getaddressutxos_response() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[cfg(feature = "getblocktemplate-rpcs")]
 async fn rpc_getblockcount() {
     use zebra_chain::chain_sync_status::MockSyncStatus;
     use zebra_network::address_book_peers::MockAddressBookPeers;
@@ -1337,7 +1336,6 @@ async fn rpc_getblockcount() {
     mempool.expect_no_requests().await;
 }
 
-#[cfg(feature = "getblocktemplate-rpcs")]
 #[tokio::test(flavor = "multi_thread")]
 async fn rpc_getblockcount_empty_state() {
     use zebra_chain::chain_sync_status::MockSyncStatus;
@@ -1391,7 +1389,6 @@ async fn rpc_getblockcount_empty_state() {
     mempool.expect_no_requests().await;
 }
 
-#[cfg(feature = "getblocktemplate-rpcs")]
 #[tokio::test(flavor = "multi_thread")]
 async fn rpc_getpeerinfo() {
     use zebra_chain::chain_sync_status::MockSyncStatus;
@@ -1509,7 +1506,6 @@ async fn rpc_getpeerinfo() {
     mempool.expect_no_requests().await;
 }
 
-#[cfg(feature = "getblocktemplate-rpcs")]
 #[tokio::test(flavor = "multi_thread")]
 async fn rpc_getblockhash() {
     use zebra_chain::chain_sync_status::MockSyncStatus;
@@ -1579,7 +1575,6 @@ async fn rpc_getblockhash() {
     mempool.expect_no_requests().await;
 }
 
-#[cfg(feature = "getblocktemplate-rpcs")]
 #[tokio::test(flavor = "multi_thread")]
 async fn rpc_getmininginfo() {
     use zebra_chain::chain_sync_status::MockSyncStatus;
@@ -1616,7 +1611,6 @@ async fn rpc_getmininginfo() {
         .expect("get_mining_info call should succeed");
 }
 
-#[cfg(feature = "getblocktemplate-rpcs")]
 #[tokio::test(flavor = "multi_thread")]
 async fn rpc_getnetworksolps() {
     use zebra_chain::chain_sync_status::MockSyncStatus;
@@ -1685,7 +1679,6 @@ async fn rpc_getnetworksolps() {
     }
 }
 
-#[cfg(feature = "getblocktemplate-rpcs")]
 #[tokio::test(flavor = "multi_thread")]
 async fn rpc_getblocktemplate() {
     // test getblocktemplate with a miner P2SH address
@@ -1694,7 +1687,6 @@ async fn rpc_getblocktemplate() {
     rpc_getblocktemplate_mining_address(false).await;
 }
 
-#[cfg(feature = "getblocktemplate-rpcs")]
 async fn rpc_getblocktemplate_mining_address(use_p2pkh: bool) {
     use zebra_chain::{
         amount::NonNegative,
@@ -2028,7 +2020,6 @@ async fn rpc_getblocktemplate_mining_address(use_p2pkh: bool) {
     mempool.expect_no_requests().await;
 }
 
-#[cfg(feature = "getblocktemplate-rpcs")]
 #[tokio::test(flavor = "multi_thread")]
 async fn rpc_submitblock_errors() {
     use zebra_chain::chain_sync_status::MockSyncStatus;
@@ -2104,7 +2095,6 @@ async fn rpc_submitblock_errors() {
     // See zebrad::tests::acceptance::submit_block for success case.
 }
 
-#[cfg(feature = "getblocktemplate-rpcs")]
 #[tokio::test(flavor = "multi_thread")]
 async fn rpc_validateaddress() {
     use get_block_template_rpcs::types::validate_address;
@@ -2150,7 +2140,6 @@ async fn rpc_validateaddress() {
     );
 }
 
-#[cfg(feature = "getblocktemplate-rpcs")]
 #[tokio::test(flavor = "multi_thread")]
 async fn rpc_z_validateaddress() {
     use get_block_template_rpcs::types::z_validate_address;
@@ -2196,7 +2185,6 @@ async fn rpc_z_validateaddress() {
     );
 }
 
-#[cfg(feature = "getblocktemplate-rpcs")]
 #[tokio::test(flavor = "multi_thread")]
 async fn rpc_getdifficulty() {
     use zebra_chain::{
@@ -2360,7 +2348,6 @@ async fn rpc_getdifficulty() {
     assert_eq!(format!("{:.2}", get_difficulty.unwrap()), "4096.00");
 }
 
-#[cfg(feature = "getblocktemplate-rpcs")]
 #[tokio::test(flavor = "multi_thread")]
 async fn rpc_z_listunifiedreceivers() {
     let _init_guard = zebra_test::init();
