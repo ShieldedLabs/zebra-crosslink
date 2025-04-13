@@ -2,11 +2,6 @@
 
 #![allow(clippy::print_stdout)]
 
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::broadcast;
-use tokio::time::Instant;
-use tracing::{error, info, warn};
 use crate::core::Round as BFTRound;
 use async_trait::async_trait;
 use malachitebft_app_channel::app::config as mconfig;
@@ -29,8 +24,13 @@ use rand::{Rng, SeedableRng};
 use sha3::Digest;
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
 use sync::RawDecidedValue;
 use tempdir::TempDir;
+use tokio::sync::broadcast;
+use tokio::time::Instant;
+use tracing::{error, info, warn};
 
 pub mod service;
 pub mod config {

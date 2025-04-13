@@ -1387,3 +1387,17 @@ pub fn main(tokio_root_thread_handle: JoinHandle<()>) {
 
     // tokio_root_thread_handle.join();
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_window_conf() {
+        let config = window::Conf {
+            window_title: "Zcash blocks".to_owned(),
+            fullscreen: false,
+            ..Default::default()
+        };
+    }
+}
