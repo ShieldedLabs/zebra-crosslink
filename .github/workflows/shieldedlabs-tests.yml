@@ -4,7 +4,7 @@ on:
   merge_group:
     types: [checks_requested]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "ms*"]
 
 # Ensures that only one workflow task will run at a time. Previous builds, if
 # already in process, will get cancelled. Only the latest commit will be allowed
