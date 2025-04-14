@@ -6890,6 +6890,7 @@ version = "1.0.0-beta.45"
 dependencies = [
  "async-trait",
  "bytes",
+ "chrono",
  "color-eyre",
  "derive-where",
  "eyre",
@@ -6920,6 +6921,7 @@ dependencies = [
  "tracing-subscriber",
  "zebra-chain",
  "zebra-state",
+ "zebra-test",
 ]
 
 [[package]]
