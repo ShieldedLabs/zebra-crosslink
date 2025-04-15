@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Reads stdin or the file $1, looks lines up as hashes, then outputs block info
+# for each hash. Uses the zcash-cli command for block lookups.
+
+ZCASH_CLI="${ZCASH_CLI:-zcash-cli}"
+
+while read hash; do
+    header=$($ZCASH_CLI getblockheader "$hash" 2>&1 || true)
+
+    if echo "$header" | jq . > /dev/null 2> /dev/null; then
+        high=$(echo "$header" | jq -r '"\(.height)"')
+        time=$(echo "$header" | jq -r '"\(.time|todate)"')
+        prev=$(echo "$header" | jq -r '"\(.previousblockhash)"')
+        next=$(echo "$header" | jq -r '"\(.nextblockhash)"')
+
+        printf 'high: %s\ntime: %s\nhash: %s\nprev: %s\nnext: %s\n' \
+               "$high" "$time" "$hash" "$prev" "$next"
+    else
+        # Handle lookup errors
+        printf 'hash: %s\n%s\n' \
+               "$hash" "$header"
+    fi
+done < "${1:-/dev/stdin}"
