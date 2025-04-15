@@ -1,0 +1,138 @@
+[package]
+name = "zebra-rpc"
+version = "1.0.0-beta.45"
+authors = ["Zcash Foundation <zebra@zfnd.org>"]
+description = "A Zebra JSON Remote Procedure Call (JSON-RPC) interface"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ZcashFoundation/zebra"
+edition = "2021"
+
+readme = "../README.md"
+homepage = "https://zfnd.org/zebra/"
+# crates.io is limited to 5 keywords and categories
+keywords = ["zebra", "zcash"]
+# Must be one of <https://crates.io/category_slugs>
+categories = [
+    "asynchronous",
+    "cryptography::cryptocurrencies",
+    "encoding",
+    "network-programming",
+]
+
+[features]
+
+indexer-rpcs = [
+    "tonic-build",
+    "tonic",
+    "tonic-reflection",
+    "prost",
+    "tokio-stream",
+    "zebra-state/indexer"
+]
+
+# Production features that activate extra dependencies, or extra features in dependencies
+
+# Mining RPC support
+getblocktemplate-rpcs = [
+    "zcash_address",
+    "zebra-consensus/getblocktemplate-rpcs",
+    "zebra-state/getblocktemplate-rpcs",
+    "zebra-node-services/getblocktemplate-rpcs",
+    "zebra-chain/getblocktemplate-rpcs",
+]
+
+# Experimental internal miner support
+internal-miner = []
+
+# Test-only features
+proptest-impl = [
+    "proptest",
+    "zebra-consensus/proptest-impl",
+    "zebra-state/proptest-impl",
+    "zebra-network/proptest-impl",
+    "zebra-chain/proptest-impl",
+]
+
+[dependencies]
+chrono = { workspace = true, features = ["clock", "std"] }
+futures = { workspace = true }
+
+jsonrpsee = { workspace = true, features = ["server"] }
+jsonrpsee-types = { workspace = true }
+jsonrpsee-proc-macros = { workspace = true }
+hyper = { workspace = true }
+http-body-util = { workspace = true }
+semver = { workspace = true }
+serde_json = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
+
+# RPC endpoint basic auth
+base64 = { workspace = true }
+rand = { workspace = true }
+
+# Error handling
+color-eyre = { workspace = true }
+
+tokio = { workspace = true, features = ["time", "rt-multi-thread", "macros", "tracing"] }
+tower = { workspace = true }
+
+# indexer-rpcs dependencies
+tonic = { workspace = true, optional = true }
+tonic-reflection = { workspace = true, optional = true }
+prost = { workspace = true, optional = true }
+tokio-stream = { workspace = true, optional = true }
+
+tracing = { workspace = true }
+
+hex = { workspace = true, features = ["serde"] }
+serde = { workspace = true, features = ["serde_derive"] }
+
+# For the `stop` RPC method.
+nix = { workspace = true, features = ["signal"] }
+
+zcash_primitives = { workspace = true, features = ["transparent-inputs"] }
+zcash_protocol.workspace = true
+
+# ECC deps used by getblocktemplate-rpcs feature
+zcash_address = { workspace = true, optional = true}
+
+# Test-only feature proptest-impl
+proptest = { workspace = true, optional = true }
+
+zebra-chain = { path = "../zebra-chain", version = "1.0.0-beta.45", features = [
+    "json-conversion",
+] }
+zebra-consensus = { path = "../zebra-consensus", version = "1.0.0-beta.45" }
+zebra-network = { path = "../zebra-network", version = "1.0.0-beta.45" }
+zebra-node-services = { path = "../zebra-node-services", version = "1.0.0-beta.45", features = [
+    "rpc-client",
+] }
+zebra-script = { path = "../zebra-script", version = "1.0.0-beta.45" }
+zebra-state = { path = "../zebra-state", version = "1.0.0-beta.45" }
+zebra-crosslink = { path = "../zebra-crosslink", version = "1.0.0-beta.45" }
+
+[build-dependencies]
+tonic-build = { workspace = true, optional = true }
+
+[dev-dependencies]
+insta = { workspace = true, features = ["redactions", "json", "ron"] }
+
+proptest = { workspace = true }
+
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["full", "tracing", "test-util"] }
+
+zebra-chain = { path = "../zebra-chain", version = "1.0.0-beta.45", features = [
+    "proptest-impl",
+] }
+zebra-consensus = { path = "../zebra-consensus", version = "1.0.0-beta.45", features = [
+    "proptest-impl",
+] }
+zebra-network = { path = "../zebra-network", version = "1.0.0-beta.45", features = [
+    "proptest-impl",
+] }
+zebra-state = { path = "../zebra-state", version = "1.0.0-beta.45", features = [
+    "proptest-impl",
+] }
+
+zebra-test = { path = "../zebra-test", version = "1.0.0-beta.45" }
