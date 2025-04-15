@@ -1,0 +1,103 @@
+name: Crosslink Tests
+
+on:
+  merge_group:
+    types: [checks_requested]
+  pull_request:
+    branches: ["main"]
+
+# Ensures that only one workflow task will run at a time. Previous builds, if
+# already in process, will get cancelled. Only the latest commit will be allowed
+# to run, cancelling any workflows in between
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+# See: https://github.com/ShieldedLabs/zebra-crosslink/settings/variables/actions
+env:
+  RUST_LOG: ${{ vars.RUST_LOG }} # defaults to 'info'
+  RUST_BACKTRACE: ${{ vars.RUST_BACKTRACE }} # defaults to 1
+  RUST_LIB_BACKTRACE: ${{ vars.RUST_LIB_BACKTRACE }} # defaults to 0
+  COLORBT_SHOW_HIDDEN: ${{ vars.COLORBT_SHOW_HIDDEN }} # disables frame filtering, defaults to 0
+  CARGO_INCREMENTAL: ${{ vars.CARGO_INCREMENTAL }} # defaults to 0
+
+jobs:
+  test:
+    name: Crosslink Tests
+    runs-on: ubuntu-latest-xl
+    steps:
+      - uses: actions/checkout@v4
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: protobuf-compiler
+          version: 1.0
+      - run: rustup toolchain install stable --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      - name: Build Test Binary
+        run: cargo test --locked --workspace crosslink
+      - name: Regression tests # mostly
+        if: github.ref == 'refs/heads/main'
+        run: cargo test
+
+  build:
+    runs-on: ubuntu-latest
+    name: Static Analysis and Docs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: protobuf-compiler
+          version: 1.0
+      - run: rustup toolchain install stable --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      - name: Static Analysis
+        run: |
+          cargo fmt --check
+          cargo clippy --locked --workspace
+      - name: Ensure Crosslink docs generate
+        run: cd zebra-crosslink && cargo doc --lib
+      - name: Ensure all docs generate
+        if: github.ref == 'refs/heads/main'
+        run: cargo doc
+
+  coverage:
+    runs-on: ubuntu-latest-xl
+    steps:
+      - uses: actions/checkout@v4
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: protobuf-compiler
+          version: 1.0
+      - run: rustup toolchain install stable --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo llvm-cov
+        run: cargo install cargo-llvm-cov
+      - name: Coverage
+        run: cargo llvm-cov --lcov --no-report --package zebra-crosslink
+      - name: Upload Coverage
+        run: cargo llvm-cov --html --no-run --ignore-filename-regex="zebra-(state|chain)"
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: target/llvm-cov/html
+
+  nix:
+    runs-on: ubuntu-latest
+    name: Check Nix Flake
+    permissions:
+      actions: write
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@v30
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.run_id }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-
+          purge-created: 86400 # 1 day
+          purge-primary-key: never
+      - name: nix flake check
+        run: nix flake check

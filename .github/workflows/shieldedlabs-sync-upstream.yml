@@ -1,0 +1,40 @@
+name: Sync to upstream
+
+# Run once a day or manually
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  hard_sync_staging:
+    name: Hard sync staging to upstream
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ShieldedLabs/zebra-crosslink-staging
+          token: ${{ secrets.PAT_FOR_SYNC }}
+          ref: main
+          path: staging
+          fetch-depth: 0
+
+      - name: Add upstream and fetch
+        working-directory: staging
+        run: |
+          git remote add upstream https://github.com/ZcashFoundation/zebra.git
+          git fetch upstream
+
+      - name: Update remote URL to use PAT
+        working-directory: staging
+        run: |
+          git remote set-url origin https://x-access-token:${{ secrets.PAT_FOR_SYNC }}@github.com/ShieldedLabs/zebra-crosslink-staging.git
+
+      - name: Pull upstream/main and push origin/main
+        working-directory: staging
+        run: |
+          git checkout main
+          git pull --ff-only upstream main
+          git push origin main

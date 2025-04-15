@@ -1,0 +1,97 @@
+[package]
+name = "zebra-network"
+version = "1.0.0-beta.45"
+authors = ["Zcash Foundation <zebra@zfnd.org>", "Tower Maintainers <team@tower-rs.com>"]
+description = "Networking code for Zebra"
+# # Legal
+#
+# This licence is deliberately different to the rest of Zebra.
+#
+# Some code in:
+# zebra-network/src/peer_set/set.rs
+# zebra-network/src/peer_set/unready_service.rs
+# zebra-network/src/peer_set/initialize.rs
+# was modified from a 2019 version of:
+# https://github.com/tower-rs/tower/tree/master/tower/src/balance/p2c/service.rs
+license = "MIT"
+repository = "https://github.com/ZcashFoundation/zebra"
+edition = "2021"
+
+readme = "../README.md"
+homepage = "https://zfnd.org/zebra/"
+# crates.io is limited to 5 keywords and categories
+keywords = ["zebra", "zcash"]
+# Must be one of <https://crates.io/category_slugs>
+categories = ["asynchronous", "cryptography::cryptocurrencies", "encoding", "network-programming"]
+
+[features]
+default = []
+
+# Production features that activate extra dependencies, or extra features in dependencies
+
+progress-bar = [
+    "howudoin",
+]
+
+# Wait until `arti-client`'s dependency `x25519-dalek v1.2.0` is updated to a higher version. (#5492)
+# tor = ["arti-client", "tor-rtcompat"]
+
+# Testing features that activate extra dependencies
+proptest-impl = ["proptest", "proptest-derive", "zebra-chain/proptest-impl"]
+
+[dependencies]
+bitflags = { workspace = true }
+byteorder = { workspace = true }
+bytes = { workspace = true }
+chrono = { workspace = true, features = ["clock", "std"] }
+dirs = { workspace = true }
+hex = { workspace = true }
+humantime-serde = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
+itertools = { workspace = true }
+lazy_static = { workspace = true }
+num-integer = { workspace = true }
+ordered-map = { workspace = true }
+pin-project = { workspace = true }
+rand = { workspace = true }
+rayon = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true, features = ["serde_derive"] }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+
+futures = { workspace = true }
+tokio = { workspace = true, features = ["fs", "io-util", "net", "time", "tracing", "macros", "rt-multi-thread"] }
+tokio-stream = { workspace = true, features = ["sync", "time"] }
+tokio-util = { workspace = true, features = ["codec"] }
+tower = { workspace = true, features = ["retry", "discover", "load", "load-shed", "timeout", "util", "buffer"] }
+
+metrics = { workspace = true }
+tracing-futures = { workspace = true }
+tracing-error = { workspace = true, features = ["traced-error"] }
+tracing = { workspace = true }
+
+# prod feature progress-bar
+howudoin = { workspace = true, optional = true }
+
+# tor dependencies
+# Wait until `arti-client`'s dependency `x25519-dalek v1.2.0` is updated to a higher version. (#5492)
+# arti-client = { version = "0.0.2", optional = true }
+# tor-rtcompat  = { version = "0.0.2", optional = true }
+
+# proptest dependencies
+proptest = { workspace = true, optional = true }
+proptest-derive = { workspace = true, optional = true }
+
+zebra-chain = { path = "../zebra-chain", version = "1.0.0-beta.45", features = ["async-error"] }
+
+[dev-dependencies]
+proptest = { workspace = true }
+proptest-derive = { workspace = true }
+
+static_assertions = { workspace = true }
+tokio = { workspace = true, features = ["full", "tracing", "test-util"] }
+toml = { workspace = true }
+
+zebra-chain = { path = "../zebra-chain", features = ["proptest-impl"] }
+zebra-test = { path = "../zebra-test/" }

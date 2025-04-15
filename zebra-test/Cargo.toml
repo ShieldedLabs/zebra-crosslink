@@ -1,0 +1,47 @@
+[package]
+name = "zebra-test"
+version = "1.0.0-beta.45"
+authors = ["Zcash Foundation <zebra@zfnd.org>"]
+description = "Test harnesses and test vectors for Zebra"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ZcashFoundation/zebra"
+edition = "2021"
+
+readme = "../README.md"
+homepage = "https://zfnd.org/zebra/"
+# crates.io is limited to 5 keywords and categories
+keywords = ["zebra", "zcash"]
+# Must be one of <https://crates.io/category_slugs>
+categories = ["command-line-utilities", "cryptography::cryptocurrencies"]
+
+[dependencies]
+hex = { workspace = true }
+indexmap = { workspace = true }
+lazy_static = { workspace = true }
+insta = { workspace = true }
+itertools = { workspace = true }
+proptest = { workspace = true }
+once_cell = { workspace = true }
+rand = { workspace = true }
+regex = { workspace = true }
+
+tokio = { workspace = true, features = ["full", "tracing", "test-util"] }
+tower = { workspace = true, features = ["util"] }
+futures = { workspace = true }
+
+color-eyre = { workspace = true }
+# This is a transitive dependency via color-eyre.
+# Enable a feature that makes tinyvec compile much faster.
+tinyvec = { workspace = true, features = ["rustc_1_55"] }
+
+humantime = { workspace = true }
+owo-colors = { workspace = true }
+spandoc = { workspace = true }
+thiserror = { workspace = true }
+
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-error = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
