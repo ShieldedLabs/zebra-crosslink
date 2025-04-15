@@ -1,0 +1,44 @@
+services:
+  zebra:
+    container_name: zebra
+    image: zfnd/zebra
+    platform: linux/amd64
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          cpus: "4"
+          memory: 16G
+    env_file:
+      - .env
+    volumes:
+      - zebrad-cache:/home/zebra/.cache/zebra
+    # Having `tty` set to true makes Zebra use colored logs.
+    tty: true
+    #! Uncomment the `configs` mapping below to make your custom configuration
+    #! take effect.
+    #
+    # configs:
+    #   - source: zebra-config
+    #     target: /home/zebra/.config/zebrad.toml
+    #
+    # Uncomment the `ports` mapping below to map ports between the container and
+    # host.
+    #
+    # ports:
+    #   - "8232:8232"   # RPC endpoint on Mainnet
+    #   - "18232:18232" # RPC endpoint on Testnet
+    #   - "8233:8233"   # peer connections on Mainnet
+    #   - "18233:18233" # peer connections on Testnet
+    #   - "9999:9999"   # Metrics
+    #   - "3000:3000"   # Tracing
+
+configs:
+  zebra-config:
+    #! To customize the default configuration, edit this file before starting
+    #! the container.
+    file: ./default-zebra-config.toml
+
+volumes:
+  zebrad-cache:
+    driver: local

@@ -1,0 +1,546 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: main
+  merge_group:
+
+jobs:
+  required-test:
+    name: Test ${{ matrix.state }} on ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        target:
+          - Linux
+        state:
+          - no-Orchard
+          - Orchard
+          - NU7
+
+        include:
+          - target: Linux
+            os: ubuntu-latest-8cores
+
+          - state: Orchard
+            extra_flags: orchard
+          - state: NU7
+            extra_flags: orchard
+            rustflags: '--cfg zcash_unstable="nu7"'
+
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
+      RUSTDOCFLAGS: ${{ matrix.rustflags }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: prepare
+        uses: ./.github/actions/prepare
+        with:
+          extra-features: ${{ matrix.extra_flags || '' }}
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-msrv-${{ hashFiles('**/Cargo.lock') }}
+      - name: Run tests
+        run: >
+          cargo test
+          --workspace
+          ${{ steps.prepare.outputs.feature-flags }}
+      - name: Verify working directory is clean
+        run: git diff --exit-code
+
+  test:
+    name: Test ${{ matrix.state }} on ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      matrix:
+        target:
+          - macOS
+          - Windows
+        state:
+          - no-Orchard
+          - Orchard
+          - NU7
+
+        include:
+          - target: macOS
+            os: macOS-latest
+          - target: Windows
+            os: windows-latest-8cores
+
+          - state: Orchard
+            extra_flags: orchard
+          - state: NU7
+            extra_flags: orchard
+            rustflags: '--cfg zcash_unstable="nu7"'
+
+        exclude:
+          - target: macOS
+            state: NU7
+
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
+      RUSTDOCFLAGS: ${{ matrix.rustflags }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: prepare
+        uses: ./.github/actions/prepare
+        with:
+          extra-features: ${{ matrix.extra_flags || '' }}
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-msrv-${{ hashFiles('**/Cargo.lock') }}
+      - name: Run tests
+        run: >
+          cargo test
+          --workspace
+          ${{ steps.prepare.outputs.feature-flags }}
+      - name: Verify working directory is clean
+        run: git diff --exit-code
+
+  test-slow:
+    name: Slow Test ${{ matrix.state }} on ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      matrix:
+        target:
+          - Linux
+        state:
+          - Orchard
+          - NU7
+
+        include:
+          - target: Linux
+            os: ubuntu-latest-8cores
+
+          - state: Orchard
+            extra_flags: orchard
+          - state: NU7
+            extra_flags: orchard
+            rustflags: '--cfg zcash_unstable="nu7"'
+
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
+      RUSTDOCFLAGS: ${{ matrix.rustflags }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: prepare
+        uses: ./.github/actions/prepare
+        with:
+          extra-features: ${{ matrix.extra_flags || '' }}
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-msrv-${{ hashFiles('**/Cargo.lock') }}
+      - name: Run slow tests
+        run: >
+          cargo test
+          --workspace
+          ${{ steps.prepare.outputs.feature-flags }}
+          --features expensive-tests
+          -- --ignored
+      - name: Verify working directory is clean
+        run: git diff --exit-code
+
+  # States that we want to ensure can be built, but that we don't actively run tests for.
+  check-msrv:
+    name: Check ${{ matrix.state }} build on ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        target:
+          - Linux
+          - macOS
+          - Windows
+        state:
+          - ZFuture
+
+        include:
+          - target: Linux
+            os: ubuntu-latest
+          - target: macOS
+            os: macOS-latest
+          - target: Windows
+            os: windows-latest
+
+          - state: ZFuture
+            rustflags: '--cfg zcash_unstable="zfuture"'
+
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
+      RUSTDOCFLAGS: ${{ matrix.rustflags }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: prepare
+        uses: ./.github/actions/prepare
+        with:
+          extra-features: ${{ matrix.extra_flags || '' }}
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-msrv-${{ hashFiles('**/Cargo.lock') }}
+      - name: Run check
+        run: >
+          cargo check
+          --release
+          --workspace
+          --tests
+          ${{ steps.prepare.outputs.feature-flags }}
+      - name: Verify working directory is clean
+        run: git diff --exit-code
+
+  build-latest:
+    name: Latest build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: prepare
+        uses: ./.github/actions/prepare
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-latest
+      - uses: dtolnay/rust-toolchain@stable
+        id: toolchain
+      - run: rustup override set "${TOOLCHAIN}"
+        shell: sh
+        env:
+          TOOLCHAIN: ${{steps.toolchain.outputs.name}}
+      - name: Remove lockfile to build with latest dependencies
+        run: rm Cargo.lock
+      - name: Build crates
+        run: >
+          cargo build
+          --workspace
+          --all-targets
+          ${{ steps.prepare.outputs.feature-flags }}
+          --verbose
+      - name: Verify working directory is clean (excluding lockfile)
+        run: git diff --exit-code ':!Cargo.lock'
+
+  build-nodefault:
+    name: Build target ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - wasm32-wasi
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: crates
+      # We use a synthetic crate to ensure no dev-dependencies are enabled, which can
+      # be incompatible with some of these targets.
+      - name: Create synthetic crate for testing
+        run: cargo init --lib ci-build --edition 2021
+      - name: Copy Rust version into synthetic crate
+        run: cp crates/rust-toolchain.toml ci-build/
+      - name: Copy patch directives into synthetic crate
+        run: |
+          echo "[patch.crates-io]" >> ./ci-build/Cargo.toml
+          cat ./crates/Cargo.toml | sed "0,/.\+\(patch.crates.\+\)/d" >> ./ci-build/Cargo.toml
+      - name: Add zcash_proofs as a dependency of the synthetic crate
+        working-directory: ./ci-build
+        run: cargo add --no-default-features --path ../crates/zcash_proofs
+      - name: Add zcash_client_backend as a dependency of the synthetic crate
+        working-directory: ./ci-build
+        run: cargo add --path ../crates/zcash_client_backend
+      - name: Copy pinned dependencies into synthetic crate
+        run: cp crates/Cargo.lock ci-build/
+      - name: Add target
+        working-directory: ./ci-build
+        run: rustup target add ${{ matrix.target }}
+      - name: Build for target
+        working-directory: ./ci-build
+        run: cargo build --verbose --target ${{ matrix.target }}
+
+  build-nostd:
+    name: Build target ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - thumbv7em-none-eabihf
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: crates
+      # We use a synthetic crate to ensure no dev-dependencies are enabled, which can
+      # be incompatible with some of these targets.
+      - name: Create synthetic crate for testing
+        run: cargo init --lib ci-build --edition 2021
+      - name: Copy Rust version into synthetic crate
+        run: cp crates/rust-toolchain.toml ci-build/
+      - name: Copy patch directives into synthetic crate
+        run: |
+          echo "[patch.crates-io]" >> ./ci-build/Cargo.toml
+          cat ./crates/Cargo.toml | sed "0,/.\+\(patch.crates.\+\)/d" >> ./ci-build/Cargo.toml
+      - name: Add no_std pragma to lib.rs
+        run: |
+          echo "#![no_std]" > ./ci-build/src/lib.rs
+      - name: Add zcash_keys as a dependency of the synthetic crate
+        working-directory: ./ci-build
+        run: cargo add --no-default-features --path ../crates/zcash_keys
+      - name: Add pczt as a dependency of the synthetic crate
+        working-directory: ./ci-build
+        run: cargo add --no-default-features --path ../crates/pczt
+      - name: Add zcash_primitives as a dependency of the synthetic crate
+        working-directory: ./ci-build
+        run: cargo add --no-default-features --path ../crates/zcash_primitives
+      - name: Add lazy_static with the spin_no_std feature
+        working-directory: ./ci-build
+        run: cargo add lazy_static --features "spin_no_std"
+      - name: Add target
+        working-directory: ./ci-build
+        run: rustup target add ${{ matrix.target }}
+      - name: Build for target
+        working-directory: ./ci-build
+        run: cargo build --verbose --target ${{ matrix.target }}
+
+  bitrot:
+    name: Bitrot check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # Build benchmarks to prevent bitrot
+      - name: Build benchmarks
+        run: cargo build --all --benches
+
+  clippy:
+    name: Clippy (MSRV)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: prepare
+        uses: ./.github/actions/prepare
+      - name: Run clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          name: Clippy (MSRV)
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: >
+            ${{ steps.prepare.outputs.feature-flags }}
+            --all-targets
+            --
+            -D warnings
+
+  clippy-beta:
+    name: Clippy (beta)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: prepare
+        uses: ./.github/actions/prepare
+      - uses: dtolnay/rust-toolchain@beta
+        id: toolchain
+      - run: rustup override set "${TOOLCHAIN}"
+        env:
+          TOOLCHAIN: ${{steps.toolchain.outputs.name}}
+      - name: Run Clippy (beta)
+        uses: actions-rs/clippy-check@v1
+        with:
+          name: Clippy (beta)
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: >
+            ${{ steps.prepare.outputs.feature-flags }}
+            --all-targets
+            --
+            -W clippy::all
+
+  codecov:
+    name: Code coverage
+    runs-on: ubuntu-latest
+    container:
+      image: xd009642/tarpaulin:develop-nightly
+      options: --security-opt seccomp=unconfined
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: prepare
+        uses: ./.github/actions/prepare
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: codecov-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Generate coverage report
+        run: >
+          cargo tarpaulin
+          --engine llvm
+          ${{ steps.prepare.outputs.feature-flags }}
+          --release
+          --timeout 600
+          --out xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5.3.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  doc-links:
+    name: Intra-doc links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: prepare
+        uses: ./.github/actions/prepare
+      - run: cargo fetch
+      # Requires #![deny(rustdoc::broken_intra_doc_links)] in crates.
+      - name: Check intra-doc links
+        run: >
+          cargo doc
+          --all
+          ${{ steps.prepare.outputs.feature-flags }}
+          --document-private-items
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  protobuf:
+    name: protobuf consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: prepare
+        uses: ./.github/actions/prepare
+      - name: Install protoc
+        uses: supplypike/setup-bin@v4
+        with:
+          uri: 'https://github.com/protocolbuffers/protobuf/releases/download/v25.1/protoc-25.1-linux-x86_64.zip'
+          name: 'protoc'
+          version: '25.1'
+          subPath: 'bin'
+      - name: Trigger protobuf regeneration
+        run: >
+          cargo check
+          --workspace
+          ${{ steps.prepare.outputs.feature-flags }}
+      - name: Verify working directory is clean
+        run: git diff --exit-code
+
+  uuid:
+    name: UUID validity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Extract UUIDs
+        id: extract
+        run: |
+          {
+            echo 'UUIDS<<EOF'
+            git grep -h "const MIGRATION_ID: Uuid = Uuid::from_u128" zcash_client_sqlite/ |
+              sed -e "s,.*Uuid::from_u128(0x,," -e "s,_,-,g" -e "s,);,,"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+      - name: Check UUID validity
+        env:
+          UUIDS: ${{ steps.extract.outputs.UUIDS }}
+        run: uuidparse -n -o type $UUIDS | xargs -L 1 test "invalid" !=
+      - name: Check UUID type
+        env:
+          UUIDS: ${{ steps.extract.outputs.UUIDS }}
+        run: uuidparse -n -o type $UUIDS | xargs -L 1 test "random" =
+      - name: Check UUID uniqueness
+        env:
+          UUIDS: ${{ steps.extract.outputs.UUIDS }}
+        run: >
+          test $(
+            uuidparse -n -o uuid $U4 | wc -l
+          ) -eq $(
+            uuidparse -n -o uuid $U4 | sort | uniq | wc -l
+          )
+
+  required-checks:
+    name: Required status checks have passed
+    needs:
+      - required-test
+      - check-msrv
+      - build-latest
+      - build-nodefault
+      - bitrot
+      - clippy
+      - doc-links
+      - fmt
+      - protobuf
+      - uuid
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine whether all required-pass steps succeeded
+        run: |
+          echo "${NEEDS}" | jq -e '[ .[] | .result == "success" ] | all'
+        env:
+          NEEDS: ${{ toJSON(needs) }}

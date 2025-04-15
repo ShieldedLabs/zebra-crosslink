@@ -1,0 +1,19 @@
+services:
+  zebra:
+    container_name: zebra
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+      target: tests
+    volumes:
+      - zebrad-cache:/home/zebra/.cache/zebra
+      - lwd-cache:/home/zebra/.cache/lwd
+    env_file:
+      - test.env
+
+volumes:
+  zebrad-cache:
+    driver: local
+
+  lwd-cache:
+    driver: local
