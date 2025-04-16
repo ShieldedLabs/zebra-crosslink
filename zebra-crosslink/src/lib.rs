@@ -1,5 +1,6 @@
 //! Internal Zebra service for managing the Crosslink consensus protocol
 
+#![allow(unused)]
 #![allow(clippy::print_stdout)]
 #![allow(unexpected_cfgs, unused, missing_docs)]
 
