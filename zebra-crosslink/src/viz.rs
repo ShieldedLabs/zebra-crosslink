@@ -914,7 +914,7 @@ impl VizCtx {
             if let Some(node_hash) = new_node.hash() {
                 if let Some(&Some(child)) = self.missing_bc_parents.get(&node_hash) {
                     self.missing_bc_parents.remove(&node_hash);
-                    new_node.pt = nodes[child].pt + vec2(0., nodes[child].rad + new_node.rad + 90.); // TODO: handle positioning when both parent & child are set
+                    new_node.pt = nodes[child].pt + vec2(0., nodes[child].rad + new_node.rad + 30.); // TODO: handle positioning when both parent & child are set
 
                     assert!(nodes[child].parent.is_none());
                     assert!(
@@ -930,7 +930,7 @@ impl VizCtx {
 
         if needs_fixup {
             if let Some(parent) = new_node.parent {
-                new_node.pt = nodes[parent].pt - vec2(0., nodes[parent].rad + new_node.rad + 90.);
+                new_node.pt = nodes[parent].pt - vec2(0., nodes[parent].rad + new_node.rad + 30.);
             }
         }
 
@@ -1176,6 +1176,32 @@ fn circle_scale(circle: Circle, scale: f32) -> Circle {
     }
 }
 
+const DT: f32 = 1. / 60.;
+const INV_DT: f32 = 1. / DT;
+const INV_DT_SQ: f32 = 1. / (DT * DT);
+
+/// TODO: can we avoid the sqrt round trip by doing computations on vectors
+///       directly instead of on distances?
+/// Both stiff_coeff & damp_coeff should be in the range [0.,1.]
+/// The safe upper limit for stability depends on the number of springs connected to a node:
+/// C_max ~= 1/(springs_n + 1)
+///
+/// If you have 2 free-floating nodes applying force to each other, plug the `reduced_mass` in for
+/// mass
+fn spring_force(d_pos: f32, vel: f32, mass: f32, stiff_coeff: f32, damp_coeff: f32) -> f32 {
+    let stiff_force = INV_DT_SQ * d_pos * stiff_coeff;
+    let damp_force = INV_DT * vel * damp_coeff;
+    let mut result = -(stiff_force + damp_force) * mass;
+    result += 0.;
+    result
+}
+
+/// Effective mass when 2 free floating particles are both applying force to each other
+/// inv_mass = 1/mass; inv_mass == 0 implies one point is completely fixed (i.e. not free-floating)
+fn reduced_mass(inv_mass_a: f32, inv_mass_b: f32) -> f32 {
+    1. / (inv_mass_a + inv_mass_b)
+}
+
 fn ui_camera_window<F: FnOnce(&mut ui::Ui)>(
     id: ui::Id,
     camera: &Camera2D,
@@ -1237,8 +1263,7 @@ pub async fn viz_main(
         );
 
         draw_arc(pt + vec2(0., 90.), 30., rot_deg, 60., 3., 0., WHITE);
-        let dt = 1. / 60.;
-        rot_deg += 360. / 1.25 * dt; // 1 rotation per 1.25 seconds
+        rot_deg += 360. / 1.25 * DT; // 1 rotation per 1.25 seconds
 
         if VIZ_G.lock().unwrap().is_some() {
             break;
@@ -1790,28 +1815,60 @@ pub async fn viz_main(
         //     move or just child)
         // - cross-chain links aim for horizontal(?)
         // - all other nodes try to enforce a certain distance
-        // - move perpendicularly/horizontally away from non-coincident edges
+        // - move perpendicularly/horizontally away from non-coincident edges (strength
+        // inversely-proportional to edge length? - As if equivalent mass stretched out across line...)
+
+        #[derive(PartialEq)]
+        enum SpringMethod {
+            Old,
+            Coeff,
+        }
+        let spring_method = SpringMethod::Coeff;
 
         // calculate forces
         let spring_stiffness = 160.;
         for node_i in 0..ctx.nodes.len() {
-            // parent-child height - O(n) //////////////////////////////
             let a_pt = ctx.nodes[node_i].pt
                 + vec2(rng.gen_range(0. ..=0.0001), rng.gen_range(0. ..=0.0001));
+            let a_vel = ctx.nodes[node_i].vel;
+            let a_vel_mag = a_vel.length();
+
+            // apply friction
+            let friction = -1. * a_vel;
+            ctx.nodes[node_i].acc += friction;
+            dbg.new_force(node_i, friction);
+
+            // parent-child height - O(n) //////////////////////////////
+
             if let Some(parent_i) = ctx.nodes[node_i].parent {
                 if let Some(parent) = ctx.nodes.get(parent_i) {
-                    let intended_height = ctx.nodes[node_i]
+                    let intended_dy = ctx.nodes[node_i]
                         .difficulty
                         .and_then(|difficulty| difficulty.to_work())
                         .map_or(100., |work| {
                             150. * work.as_u128() as f32 / ctx.bc_work_max as f32
                         });
-                    let target_pt = vec2(parent.pt.x, parent.pt.y - intended_height);
-                    let v = a_pt - target_pt;
-                    let force = -vec2(0.1 * spring_stiffness * v.x, 0.5 * spring_stiffness * v.y);
-                    ctx.nodes[node_i].acc += force;
+                    let intended_y = parent.pt.y - intended_dy;
 
+                    let force = match spring_method {
+                        SpringMethod::Old => {
+                            let target_pt = vec2(parent.pt.x, intended_y);
+                            let v = a_pt - target_pt;
+                            -vec2(0.1 * spring_stiffness * v.x, 0.5 * spring_stiffness * v.y)
+                        }
+
+                        SpringMethod::Coeff => {
+                             Vec2 {
+                                x: spring_force(a_pt.x - parent.pt.x, a_vel.x, 0.5, 0.001, 0.1),
+                                y: spring_force(a_pt.y - intended_y, a_vel.y, 0.5, 0.01, 0.2),
+                            }
+                        }
+                    };
+
+                    ctx.nodes[node_i].acc += force;
                     dbg.new_force(node_i, force);
+                    ctx.nodes[parent_i].acc -= force;
+                    dbg.new_force(node_i, -force);
                 }
             }
 
@@ -1822,14 +1879,17 @@ pub async fn viz_main(
                 if node_i2 != node_i {
                     let b_to_a = a_pt - node_b.pt;
                     let dist_sq = b_to_a.length_squared();
-                    let target_dist = 50.;
+                    let target_dist = 75.;
                     if dist_sq < (target_dist * target_dist) {
                         // fallback to push coincident nodes apart horizontally
                         let dir = b_to_a.normalize_or(vec2(1., 0.));
                         let target_pt = node_b.pt + dir * target_dist;
                         let v = a_pt - target_pt;
-                        let force =
-                            -vec2(1.5 * spring_stiffness * v.x, 1. * spring_stiffness * v.y);
+                        let force = match spring_method {
+                            SpringMethod::Old => -vec2(1.5 * spring_stiffness * v.x, 1. * spring_stiffness * v.y),
+                            // NOTE: 0.5 is the reduced mass for 2 nodes of mass 1
+                            SpringMethod::Coeff => v.normalize_or(vec2(0., 0.)) * spring_force(v.length(), a_vel_mag, 0.5, 0.02, 0.3),
+                        };
                         ctx.nodes[node_i].acc += force;
 
                         dbg.new_force(node_i, force);
@@ -1838,14 +1898,16 @@ pub async fn viz_main(
             }
         }
 
-        let dt = 1. / 60.;
         if true {
             // apply forces
             for node in &mut *ctx.nodes {
-                node.vel += node.acc * dt;
-                node.pt += node.vel * dt;
+                node.vel += node.acc * DT;
+                node.pt += node.vel * DT;
 
-                node.acc = -0.5 * spring_stiffness * node.vel; // TODO: or slight drag?
+                match spring_method {
+                    SpringMethod::Old => node.acc = -0.5 * spring_stiffness * node.vel, // TODO: or slight drag?
+                    _ => node.acc = Vec2::_0,
+                }
             }
         }
 
@@ -2007,7 +2069,7 @@ pub async fn viz_main(
             // draw resultant force
             for node in &mut *ctx.nodes {
                 if node.acc != Vec2::_0 {
-                    draw_arrow_lines(node.pt, node.pt + node.acc * dt, 1., 9., PURPLE);
+                    draw_arrow_lines(node.pt, node.pt + node.acc * DT, 1., 9., PURPLE);
                 }
             }
 
@@ -2016,7 +2078,7 @@ pub async fn viz_main(
                 let node = &ctx.nodes[*node_i];
                 for force in forces {
                     if *force != Vec2::_0 {
-                        draw_arrow_lines(node.pt, node.pt + *force * dt, 1., 9., ORANGE);
+                        draw_arrow_lines(node.pt, node.pt + *force * DT, 1., 9., ORANGE);
                     };
                 }
             }
