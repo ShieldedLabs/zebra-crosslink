@@ -134,13 +134,13 @@ pub fn spawn_new_tfl_service(
             tfl_is_activated: false,
             stakers: Vec::new(),
             final_change_tx: broadcast::channel(16).0,
-            bft_block_strings: Vec::new(),
+            bft_blocks: Vec::new(),
             proposed_bft_string: None,
         })),
         call: TFLServiceCalls {
             read_state: read_state_service_call,
         },
-        config: config,
+        config,
     };
     let handle2 = handle1.clone();
 
@@ -166,8 +166,11 @@ impl fmt::Debug for TFLServiceCalls {
 /// the internal state of the TFLService and the service calls that can be made to it.
 #[derive(Clone, Debug)]
 pub struct TFLServiceHandle {
+    /// A threadsafe wrapper around the stored internal data
     pub(crate) internal: Arc<Mutex<TFLServiceInternal>>,
+    /// The collection of service calls available
     pub(crate) call: TFLServiceCalls,
+    /// The file-generated config data
     pub config: crate::config::Config,
 }
 
@@ -188,7 +191,7 @@ mod tests {
             tfl_is_activated: false, // dup of Some/None(latest_final_block)?
             stakers: Vec::new(),
             final_change_tx: broadcast::channel(16).0,
-            bft_block_strings: Vec::new(),
+            bft_blocks: Vec::new(),
             proposed_bft_string: None,
         }));
 
@@ -200,7 +203,7 @@ mod tests {
             call: TFLServiceCalls {
                 read_state: read_state_service,
             },
-            config: Default::default(),
+            config: crate::config::Config::default(),
         }
     }
 

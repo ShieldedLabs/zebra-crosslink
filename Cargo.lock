@@ -437,8 +437,6 @@ dependencies = [
  "http 1.2.0",
  "http-body",
  "http-body-util",
- "hyper",
- "hyper-util",
  "itoa",
  "matchit",
  "memchr",
@@ -447,15 +445,10 @@ dependencies = [
  "pin-project-lite",
  "rustversion",
  "serde",
- "serde_json",
- "serde_path_to_error",
- "serde_urlencoded",
  "sync_wrapper",
- "tokio",
  "tower 0.5.2",
  "tower-layer",
  "tower-service",
- "tracing",
 ]
 
 [[package]]
@@ -476,7 +469,6 @@ dependencies = [
  "sync_wrapper",
  "tower-layer",
  "tower-service",
- "tracing",
 ]
 
 [[package]]
@@ -1562,33 +1554,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "directories"
-version = "5.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a49173b84e034382284f27f1af4dcbbd231ffa358c0fe316541a7337f376a35"
-dependencies = [
- "dirs-sys 0.4.1",
-]
-
-[[package]]
 name = "dirs"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
 dependencies = [
- "dirs-sys 0.5.0",
-]
-
-[[package]]
-name = "dirs-sys"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
-dependencies = [
- "libc",
- "option-ext",
- "redox_users 0.4.6",
- "windows-sys 0.48.0",
+ "dirs-sys",
 ]
 
 [[package]]
@@ -1599,7 +1570,7 @@ checksum = "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab"
 dependencies = [
  "libc",
  "option-ext",
- "redox_users 0.5.0",
+ "redox_users",
  "windows-sys 0.59.0",
 ]
 
@@ -3286,63 +3257,6 @@ dependencies = [
  "serde",
  "thiserror 2.0.11",
  "tracing",
-]
-
-[[package]]
-name = "informalsystems-malachitebft-test"
-version = "0.0.1"
-source = "git+https://git@github.com/informalsystems/malachite.git#510e1e8d637e4c60278ab92e9d85fe8055fa2c78"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "bytes",
- "ed25519-consensus",
- "eyre",
- "hex",
- "informalsystems-malachitebft-app",
- "informalsystems-malachitebft-codec",
- "informalsystems-malachitebft-config",
- "informalsystems-malachitebft-core-consensus",
- "informalsystems-malachitebft-core-types",
- "informalsystems-malachitebft-engine",
- "informalsystems-malachitebft-proto",
- "informalsystems-malachitebft-signing-ed25519",
- "informalsystems-malachitebft-sync",
- "prost",
- "prost-build",
- "prost-types",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "sha3",
- "signature",
- "tokio",
-]
-
-[[package]]
-name = "informalsystems-malachitebft-test-cli"
-version = "0.0.1"
-source = "git+https://git@github.com/informalsystems/malachite.git#510e1e8d637e4c60278ab92e9d85fe8055fa2c78"
-dependencies = [
- "axum",
- "bytesize",
- "clap 4.5.27",
- "color-eyre",
- "directories",
- "informalsystems-malachitebft-app",
- "informalsystems-malachitebft-config",
- "informalsystems-malachitebft-core-types",
- "informalsystems-malachitebft-metrics",
- "itertools 0.14.0",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "thiserror 2.0.11",
- "tokio",
- "toml 0.8.19",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -5748,17 +5662,6 @@ dependencies = [
 
 [[package]]
 name = "redox_users"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba009ff324d1fc1b900bd1fdb31564febe58a8ccc8a6fdbb93b543d33b13ca43"
-dependencies = [
- "getrandom 0.2.15",
- "libredox",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "redox_users"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd6f9d3d47bdd2ad6945c5015a226ec6155d0bcdfd8f7cd29f86b71f8de99d2b"
@@ -6380,16 +6283,6 @@ dependencies = [
  "itoa",
  "memchr",
  "ryu",
- "serde",
-]
-
-[[package]]
-name = "serde_path_to_error"
-version = "0.1.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59fab13f937fa393d08645bf3a84bdfe86e296747b506ada67bb15f10f218b2a"
-dependencies = [
- "itoa",
  "serde",
 ]
 
@@ -7251,7 +7144,6 @@ dependencies = [
  "tokio",
  "tower-layer",
  "tower-service",
- "tracing",
 ]
 
 [[package]]
@@ -7425,16 +7317,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-serde"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "704b1aeb7be0d0a84fc9828cae51dab5970fee5088f83d1dd7ee6f6246fc6ff1"
-dependencies = [
- "serde",
- "tracing-core",
-]
-
-[[package]]
 name = "tracing-subscriber"
 version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7444,15 +7326,12 @@ dependencies = [
  "nu-ansi-term",
  "once_cell",
  "regex",
- "serde",
- "serde_json",
  "sharded-slab",
  "smallvec",
  "thread_local",
  "tracing",
  "tracing-core",
  "tracing-log 0.2.0",
- "tracing-serde",
 ]
 
 [[package]]
@@ -8723,22 +8602,30 @@ version = "1.0.0-beta.45"
 dependencies = [
  "async-trait",
  "bytes",
+ "chrono",
  "color-eyre",
  "derive-where",
  "eyre",
  "futures",
+ "hex",
  "image",
+ "informalsystems-malachitebft-app",
  "informalsystems-malachitebft-app-channel",
+ "informalsystems-malachitebft-codec",
  "informalsystems-malachitebft-config",
+ "informalsystems-malachitebft-core-consensus",
+ "informalsystems-malachitebft-core-types",
  "informalsystems-malachitebft-proto",
- "informalsystems-malachitebft-test",
- "informalsystems-malachitebft-test-cli",
+ "informalsystems-malachitebft-signing-ed25519",
+ "informalsystems-malachitebft-sync",
  "libp2p-identity",
  "macroquad",
  "macroquad-profiler",
  "miniquad",
  "multiaddr",
  "pin-project",
+ "prost",
+ "prost-build",
  "rand 0.8.5",
  "rayon",
  "serde",
@@ -8759,6 +8646,7 @@ dependencies = [
  "tracing-subscriber",
  "zebra-chain",
  "zebra-state",
+ "zebra-test",
 ]
 
 [[package]]

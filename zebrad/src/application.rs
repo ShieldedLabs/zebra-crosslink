@@ -562,7 +562,7 @@ pub fn boot(app_cell: &'static AppCell<ZebradApp>) -> ! {
             ZebradApp::run(app_cell, args);
         });
 
-        zebra_crosslink::viz::main(tokio_root_thread_handle);
+        zebra_crosslink::viz::main(Some(tokio_root_thread_handle));
     }
 
     #[cfg(not(feature = "viz_gui"))]
