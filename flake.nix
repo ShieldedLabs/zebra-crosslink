@@ -261,9 +261,19 @@
               mdbook-mermaid
             ];
 
+            dynlibs = with pkgs; [
+              libGL
+              libxkbcommon
+              xorg.libX11
+              xorg.libxcb
+              xorg.libXi
+            ];
+
           in mkClangShell (commonArgs // {
             # Include devShell inputs:
             nativeBuildInputs = commonArgs.nativeBuildInputs ++ devShellInputs;
+
+            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath dynlibs;
           })
         );
       });
