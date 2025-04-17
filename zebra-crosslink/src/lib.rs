@@ -31,8 +31,8 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{DefaultHasher, Hasher};
 use std::str::FromStr;
 use sync::RawDecidedValue;
-// TODO: Swap this with tempfile
-use tempdir::TempDir;
+use tempfile::{TempDir, Builder};
+
 
 pub mod service;
 pub mod config {
@@ -977,14 +977,16 @@ impl malachitebft_app_channel::app::node::Node for BFTNode {
         let mut td = temp_dir_for_wal.lock().unwrap();
         if td.is_none() {
             *td = Some(
-                TempDir::new(&format!(
-                    "aah_very_annoying_that_the_wal_is_required_id_is_{}",
-                    rand::random::<u32>()
-                ))
-                .unwrap(),
+                Builder::new()
+                    .prefix(&format!(
+                        "aah_very_annoying_that_the_wal_is_required_id_is_{}",
+                        rand::random::<u32>()
+                    ))
+                    .tempdir()
+                    .expect("Failed to create temp dir"),
             );
         }
-        std::path::PathBuf::from(td.as_ref().unwrap().path())
+        td.as_ref().unwrap().path().to_path_buf()
     }
 
     fn get_address(&self, pk: &PublicKey) -> Address {
