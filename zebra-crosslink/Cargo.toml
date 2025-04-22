@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 zebra-chain = { path = "../zebra-chain", version = "1.0.0-beta.45" }
+zebra-crosslink-chain = { path = "../zebra-crosslink-chain" }
 zebra-state = { path = "../zebra-state", version = "1.0.0-beta.45" }
 
 serde = { workspace = true, features = ["serde_derive"] }

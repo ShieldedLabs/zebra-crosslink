@@ -24,6 +24,8 @@ use tempfile::TempDir;
 use tokio::sync::broadcast;
 use tokio::time::Instant;
 use tracing::{error, info, warn};
+use zebra_crosslink_chain::params::ZcashCrosslinkParameters;
+use zebra_crosslink_chain::BftPayload;
 
 use bytes::{Bytes, BytesMut};
 
@@ -87,7 +89,11 @@ use crate::service::{
     TFLServiceCalls, TFLServiceError, TFLServiceHandle, TFLServiceRequest, TFLServiceResponse,
 };
 
+<<<<<<< HEAD
 // TODO: do we want to start differentiating BCHeight/PoWHeight, MalHeight/PoSHeigh etc?
+=======
+// TODO: do we want to start differentiating BCHeight/PoWHeight, BFTHeight/PoSHeigh etc?
+>>>>>>> b69e22f71 (Messy first draft of constructing `BftPayload` in TFL service.)
 use zebra_chain::block::{
     Block, CountedHeader, Hash as BlockHash, Header as BlockHeader, Height as BlockHeight,
 };
@@ -584,7 +590,9 @@ async fn get_historical_bft_block_at_height(
 const MAIN_LOOP_SLEEP_INTERVAL: Duration = Duration::from_millis(125);
 const MAIN_LOOP_INFO_DUMP_INTERVAL: Duration = Duration::from_millis(8000);
 
-async fn tfl_service_main_loop(internal_handle: TFLServiceHandle) -> Result<(), String> {
+async fn tfl_service_main_loop<ZCP: ZcashCrosslinkParameters>(
+    internal_handle: TFLServiceHandle,
+) -> Result<(), String> {
     let call = internal_handle.call.clone();
     let config = internal_handle.config.clone();
     let params = &PROTOTYPE_PARAMETERS;
@@ -818,8 +826,437 @@ async fn tfl_service_main_loop(internal_handle: TFLServiceHandle) -> Result<(), 
             None
         };
 
+<<<<<<< HEAD
         tokio::time::sleep_until(run_instant).await;
         run_instant += MAIN_LOOP_SLEEP_INTERVAL;
+=======
+        tokio::select! {
+                    // sleep if we are running ahead
+                    _ = tokio::time::sleep_until(run_instant) => {
+                        run_instant += MAIN_LOOP_SLEEP_INTERVAL;
+                    }
+                    ret = channels.consensus.recv() => {
+                        let msg = ret.expect("Channel to Malachite has been closed.");
+                        match msg {
+                            // The first message to handle is the `ConsensusReady` message, signaling to the app
+                            // that Malachite is ready to start consensus
+                            BFTAppMsg::ConsensusReady { reply } => {
+                                info!("BFT Consensus is ready");
+
+                                if reply.send((current_bft_height, genesis.validator_set.clone())).is_err() {
+                                    tracing::error!("Failed to send ConsensusReady reply");
+                                }
+                            },
+
+                            // The next message to handle is the `StartRound` message, signaling to the app
+                            // that consensus has entered a new round (including the initial round 0)
+                            BFTAppMsg::StartedRound {
+                                height,
+                                round,
+                                proposer,
+                                reply_value,
+                            } => {
+                                info!(%height, %round, %proposer, "Started round");
+
+                                current_bft_height   = height;
+                                current_bft_round    = round;
+                                current_bft_proposer = Some(proposer);
+
+                                // If we have already built or seen a value for this height and round,
+                                // send it back to consensus. This may happen when we are restarting after a crash.
+                                if let Some(proposal) = prev_bft_values.get(&(height.as_u64(), round.as_i64())) {
+                                    info!(%height, %round, "Replaying already known proposed value: {}", proposal.value.id());
+
+                                    if reply_value.send(Some(proposal.clone())).is_err() {
+                                        error!("Failed to send undecided proposal");
+                                    }
+                                } else {
+                                    let _ = reply_value.send(None);
+                                }
+                            },
+
+                            // At some point, we may end up being the proposer for that round, and the engine
+                            // will then ask us for a value to propose to the other validators.
+                            BFTAppMsg::GetValue {
+                                height,
+                                round,
+                                timeout,
+                                reply,
+                            } => {
+                                info!(%height, %round, "Consensus is requesting a value to propose. Timeout = {} ms.", timeout.as_millis());
+
+                                let payload: BftPayload<ZCP> = {
+                                    // Build BftPayload in a local scope to keep the outer scope tidier:
+
+                                    // TODO: Improve error handling:
+                                    // This entire `payload` definition block unwraps in multiple cases, because we do not yet know how to proceed if we cannot construct a payload.
+                                    let (tip_height, tip_hash) = new_bc_tip.unwrap();
+                                    let finality_candidate_height = tip_height.sat_sub(ZCP::BC_CONFIRMATION_DEPTH_SIGMA as i32);
+
+                                    let resp = (call.read_state)(ReadStateRequest::BlockHeader(finality_candidate_height.into())).await;
+
+                                    let candidate_hash = if let Ok(ReadStateResponse::BlockHeader { hash, .. }) = resp {
+                                        hash
+                                    } else {
+                                        // Error or unexpected response type:
+                                        panic!("TODO: improve error handling.");
+                                    };
+
+                                    let resp = (call.read_state)(ReadStateRequest::FindBlockHeaders {
+                                        known_blocks: vec![candidate_hash],
+                                        stop: None,
+                                    })
+                                    .await;
+
+                                    let headers: Vec<BlockHeader> = if let Ok(ReadStateResponse::BlockHeaders(hdrs)) = resp {
+
+                                        hdrs.into_iter().map(|ch| Arc::unwrap_or_clone(ch.header)).collect()
+                                    } else {
+                                        // Error or unexpected response type:
+                                        panic!("TODO: improve error handling.");
+                                    };
+
+                                    BftPayload::try_from(headers).unwrap()
+                                };
+
+                                todo!("use payload: {payload:?}");
+
+                                if let Some(propose_string) = internal_handle.internal.lock().await.proposed_bft_string.take() {
+                                    // Here it is important that, if we have previously built a value for this height and round,
+                                    // we send back the very same value.
+                                    let proposal = if let Some(val) = prev_bft_values.get(&(height.as_u64(), round.as_i64())) {
+                                        info!(value = %val.value.id(), "Re-using previously built value");
+                                        val.clone()
+                                    } else {
+                                        let val = ProposedValue {
+                                            height,
+                                            round,
+                                            valid_round: Round::Nil,
+                                            proposer: my_address,
+                                            value: malctx::Value::new(propose_string),
+                                            validity: Validity::Valid,
+                                            // extension: None, TODO? "does not have this field"
+                                        };
+                                        prev_bft_values.insert((height.as_u64(), round.as_i64()), val.clone());
+                                        val
+                                    };
+                                    if reply.send(LocallyProposedValue::<malctx::TestContext>::new(
+                                            proposal.height,
+                                            proposal.round,
+                                            proposal.value.clone(),
+                                        )).is_err() {
+                                        error!("Failed to send GetValue reply");
+                                    }
+
+                                    // The POL round is always nil when we propose a newly built value.
+                                    // See L15/L18 of the Tendermint algorithm.
+                                    let pol_round = Round::Nil;
+
+                                    // NOTE(Sam): I have inlined the code from the example so that we
+                                    // can actually see the functionality. I am not sure what the purpose
+                                    // of this circus is. Why not just send the value with a simple signature?
+                                    // I am sure there is a good reason.
+
+                                    let mut hasher = sha3::Keccak256::new();
+                                    let mut parts = Vec::new();
+
+                                    // Init
+                                    // Include metadata about the proposal
+                                    {
+                                        parts.push(StreamedProposalPart::Init(StreamedProposalInit {
+                                            height: proposal.height,
+                                            round: proposal.round,
+                                            pol_round,
+                                            proposer: my_address,
+                                        }));
+
+                                        hasher.update(proposal.height.as_u64().to_be_bytes().as_slice());
+                                        hasher.update(proposal.round.as_i64().to_be_bytes().as_slice());
+                                    }
+
+                                    // Data
+                                    // Include each prime factor of the value as a separate proposal part
+                                    {
+                                        for factor in proposal.value.value.chars() {
+                                            parts.push(StreamedProposalPart::Data(StreamedProposalData::new(factor)));
+
+                                            let mut buf = [0u8; 4];
+                                            hasher.update(factor.encode_utf8(&mut buf).as_bytes());
+                                        }
+                                    }
+
+                                    // Fin
+                                    // Sign the hash of the proposal parts
+                                    {
+                                        let hash = hasher.finalize().to_vec();
+                                        let signature = my_signing_provider.sign(&hash);
+                                        parts.push(StreamedProposalPart::Fin(StreamedProposalFin::new(signature)));
+                                    }
+
+                                    let stream_id = {
+                                        let mut bytes = Vec::with_capacity(size_of::<u64>() + size_of::<u32>());
+                                        bytes.extend_from_slice(&height.as_u64().to_be_bytes());
+                                        bytes.extend_from_slice(&round.as_u32().unwrap().to_be_bytes());
+                                        malachitebft_app_channel::app::types::streaming::StreamId::new(bytes.into())
+                                    };
+
+                                    let mut msgs = Vec::with_capacity(parts.len() + 1);
+                                    let mut sequence = 0;
+
+                                    for part in parts {
+                                        let msg = malachitebft_app_channel::app::types::streaming::StreamMessage::new(stream_id.clone(), sequence, malachitebft_app_channel::app::streaming::StreamContent::Data(part));
+                                        sequence += 1;
+                                        msgs.push(msg);
+                                    }
+
+                                    msgs.push(malachitebft_app_channel::app::types::streaming::StreamMessage::new(stream_id, sequence, malachitebft_app_channel::app::streaming::StreamContent::Fin));
+
+                                    for stream_message in msgs {
+                                        info!(%height, %round, "Streaming proposal part: {stream_message:?}");
+                                        channels
+                                            .network
+                                            .send(NetworkMsg::PublishProposalPart(stream_message))
+                                            .await.unwrap();
+                                    }
+                                }
+                            },
+
+                            BFTAppMsg::ProcessSyncedValue {
+                                height,
+                                round,
+                                proposer,
+                                value_bytes,
+                                reply,
+                            } => {
+                                info!(%height, %round, "Processing synced value");
+
+                                let value : malctx::Value = codec.decode(value_bytes).unwrap();
+                                let proposed_value = ProposedValue {
+                                    height,
+                                    round,
+                                    valid_round: Round::Nil,
+                                    proposer,
+                                    value,
+                                    validity: Validity::Valid,
+                                };
+
+                                prev_bft_values.insert((height.as_u64(), round.as_i64()), proposed_value.clone());
+
+                                if reply.send(proposed_value).is_err() {
+                                    tracing::error!("Failed to send ProcessSyncedValue reply");
+                                }
+                            },
+
+                            // In some cases, e.g. to verify the signature of a vote received at a higher height
+                            // than the one we are at (e.g. because we are lagging behind a little bit),
+                            // the engine may ask us for the validator set at that height.
+                            //
+                            // In our case, our validator set stays constant between heights so we can
+                            // send back the validator set found in our genesis state.
+                            BFTAppMsg::GetValidatorSet { height: _, reply } => {
+                                // TODO: parameterize by height
+                                if reply.send(genesis.validator_set.clone()).is_err() {
+                                    tracing::error!("Failed to send GetValidatorSet reply");
+                                }
+                            },
+
+                            // After some time, consensus will finally reach a decision on the value
+                            // to commit for the current height, and will notify the application,
+                            // providing it with a commit certificate which contains the ID of the value
+                            // that was decided on as well as the set of commits for that value,
+                            // ie. the precommits together with their (aggregated) signatures.
+                            BFTAppMsg::Decided {
+                                certificate,
+                                extensions,
+                                reply,
+                            } => {
+                                info!(
+                                    height = %certificate.height,
+                                    round = %certificate.round,
+                                    value = %certificate.value_id,
+                                    "Consensus has decided on value"
+                                );
+
+                                let decided_value = prev_bft_values.get(&(certificate.height.as_u64(), certificate.round.as_i64())).unwrap();
+
+                                let raw_decided_value = RawDecidedValue {
+                                    certificate: certificate.clone(),
+                                    value_bytes: malctx::ProtobufCodec.encode(&decided_value.value).unwrap(),
+                                };
+
+                                decided_bft_values.insert(certificate.height.as_u64(), raw_decided_value);
+
+                                let mut internal = internal_handle.internal.lock().await;
+                                let insert_i = certificate.height.as_u64() as usize - 1;
+                                let parent_i = insert_i.saturating_sub(1); // just a simple chain
+                                internal.bft_blocks.insert(insert_i, (parent_i, format!("{:?}", decided_value.value.value)));
+
+                                // When that happens, we store the decided value in our store
+                                // TODO: state.commit(certificate, extensions).await?;
+                                current_bft_height = certificate.height.increment();
+                                current_bft_round  = Round::new(0);
+
+                                // And then we instruct consensus to start the next height
+                                if reply.send(malachitebft_app_channel::ConsensusMsg::StartHeight(
+                                        current_bft_height,
+                                        genesis.validator_set.clone(),
+                                )).is_err() {
+                                    tracing::error!("Failed to send Decided reply");
+                                }
+                            },
+
+                            BFTAppMsg::GetHistoryMinHeight { reply } => {
+                                // TODO: min height from DB
+                                let min_height = init_bft_height;
+                                if reply.send(min_height).is_err() {
+                                    tracing::error!("Failed to send GetHistoryMinHeight reply");
+                                }
+                            },
+
+                            BFTAppMsg::GetDecidedValue { height, reply } => {
+                                let raw_decided_value = decided_bft_values.get(&height.as_u64()).cloned();
+
+                                if reply.send(raw_decided_value).is_err() {
+                                    tracing::error!("Failed to send GetDecidedValue reply");
+                                }
+                            },
+
+                            BFTAppMsg::ExtendVote {
+                                height: _,
+                                round: _,
+                                value_id: _,
+                                reply,
+                            } => {
+        tracing::error!("extend vote");
+                                // TODO
+                                if reply.send(None).is_err() {
+                                    tracing::error!("Failed to send ExtendVote reply");
+                                }
+                            },
+
+                            BFTAppMsg::VerifyVoteExtension {
+                                height: _,
+                                round: _,
+                                value_id: _,
+                                extension: _,
+                                reply,
+                            } => {
+        tracing::error!("verify vote extension");
+                                if reply.send(Ok(())).is_err() {
+                                    tracing::error!("Failed to send VerifyVoteExtension reply");
+                                }
+                            },
+
+                            // On the receiving end of these proposal parts (ie. when we are not the proposer),
+                            // we need to process these parts and re-assemble the full value.
+                            // To this end, we store each part that we receive and assemble the full value once we
+                            // have all its constituent parts. Then we send that value back to consensus for it to
+                            // consider and vote for or against it (ie. vote `nil`), depending on its validity.
+                            BFTAppMsg::ReceivedProposalPart { from, part, reply } => {
+                                let part_type = match &part.content {
+                                    malachitebft_app_channel::app::streaming::StreamContent::Data(part) => part.get_type(),
+                                    malachitebft_app_channel::app::streaming::StreamContent::Fin => "end of stream",
+                                };
+
+                                info!(%from, %part.sequence, part.type = %part_type, "Received proposal part");
+
+                                let sequence = part.sequence;
+
+                                // Check if we have a full proposal
+                                if let Some(parts) = streams_map.insert(from, part) {
+
+                                    // NOTE(Sam): It seems VERY odd that we don't drop individual stream parts for being too
+                                    // old. Why assemble something that might never finish and is known to be stale?
+
+                                    // Check if the proposal is outdated
+                                    if parts.height < current_bft_height {
+                                        info!(
+                                            height = %current_bft_height,
+                                            round = %current_bft_round,
+                                            part.height = %parts.height,
+                                            part.round = %parts.round,
+                                            part.sequence = %sequence,
+                                            "Received outdated proposal part, ignoring"
+                                        );
+                                    } else {
+
+                                        // signature verification
+                                        {
+                                            let mut hasher = sha3::Keccak256::new();
+
+                                            let init = parts.init().unwrap();
+                                            let fin = parts.fin().unwrap();
+
+                                            let hash = {
+                                                hasher.update(init.height.as_u64().to_be_bytes());
+                                                hasher.update(init.round.as_i64().to_be_bytes());
+
+                                                // The correctness of the hash computation relies on the parts being ordered by sequence
+                                                // number, which is guaranteed by the `PartStreamsMap`.
+                                                for part in parts.parts.iter().filter_map(|part| part.as_data()) {
+                                                    let mut buf = [0u8; 4];
+                                                    hasher.update(part.factor.encode_utf8(&mut buf).as_bytes());
+                                                }
+
+                                                hasher.finalize()
+                                            };
+
+                                            // TEMP get the proposers key
+                                            let mut proposer_public_key = None;
+                                            for peer in config.malachite_peers.iter() {
+                                                let (_, _, public_key) =
+                                                    rng_private_public_key_from_address(&peer);
+                                                let address = Address::from_public_key(&public_key);
+                                                if address == parts.proposer {
+                                                    proposer_public_key = Some(public_key);
+                                                    break;
+                                                }
+                                            }
+
+                                            // Verify the signature
+                                            assert!(my_signing_provider.verify(&hash, &fin.signature, &proposer_public_key.expect("proposer not found")));
+                                        }
+
+                                        // Re-assemble the proposal from its parts
+                                        let value : ProposedValue::<malctx::TestContext> = {
+                                            let init = parts.init().unwrap();
+
+                                            let mut string_value = String::new();
+                                            for part in parts.parts.iter().filter_map(|part| part.as_data()) {
+                                                string_value.push(part.factor);
+                                            }
+
+                                            ProposedValue {
+                                                height: parts.height,
+                                                round: parts.round,
+                                                valid_round: init.pol_round,
+                                                proposer: parts.proposer,
+                                                value: malctx::Value::new(string_value),
+                                                validity: Validity::Valid,
+                                            }
+                                        };
+
+
+                                        info!(
+                                            "Storing undecided proposal {} {}",
+                                            value.height, value.round
+                                        );
+
+                                        prev_bft_values.insert((value.height.as_u64(), value.round.as_i64()), value.clone());
+
+
+                                        if reply.send(Some(value)).is_err() {
+                                            error!("Failed to send ReceivedProposalPart reply");
+                                        }
+                                    }
+                                }
+                            },
+
+                            _ => tracing::error!(?msg, "Unhandled message from Malachite"),
+                        }
+                    }
+                }
+>>>>>>> b69e22f71 (Messy first draft of constructing `BftPayload` in TFL service.)
 
         let new_bc_final = {
             // partial dup of tfl_final_block_hash

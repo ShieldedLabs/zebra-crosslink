@@ -6920,6 +6920,7 @@ dependencies = [
  "tracing-futures",
  "tracing-subscriber",
  "zebra-chain",
+ "zebra-crosslink-chain",
  "zebra-state",
  "zebra-test",
 ]
@@ -7270,6 +7271,7 @@ dependencies = [
  "zebra-chain",
  "zebra-consensus",
  "zebra-crosslink",
+ "zebra-crosslink-chain",
  "zebra-grpc",
  "zebra-network",
  "zebra-node-services",
