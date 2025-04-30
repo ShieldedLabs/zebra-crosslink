@@ -1086,10 +1086,14 @@ async fn tfl_service_main_loop<ZCP: ZcashCrosslinkParameters>(
 
                                 decided_bft_values.insert(certificate.height.as_u64(), raw_decided_value);
 
+                                let new_final_hash   = decided_value.value.value.headers.last().expect("at least 1 header").hash();
+                                let new_final_height = block_height_from_hash(&call, new_final_hash).await.expect("hash should map to a height");
+
                                 let mut internal = internal_handle.internal.lock().await;
                                 let insert_i = certificate.height.as_u64() as usize - 1;
                                 let parent_i = insert_i.saturating_sub(1); // just a simple chain
                                 internal.bft_blocks.insert(insert_i, (parent_i, format!("{:?}", decided_value.value.value)));
+                                internal.latest_final_block = Some((new_final_height, new_final_hash));
 
                                 // When that happens, we store the decided value in our store
                                 // TODO: state.commit(certificate, extensions).await?;
