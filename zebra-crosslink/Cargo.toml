@@ -54,7 +54,14 @@ miniquad = { version = "0.4.8", optional = true }
 hex                = { version = "0.4.3", features = ["serde"] }
 
 [dev-dependencies]
-zebra-test = { path = "../zebra-test", version = "1.0.0-beta.45" }
+tower-service = "0.3.3"
+zebra-rpc = { path = "../zebra-rpc", features = ["proptest-impl", "getblocktemplate-rpcs"] }
+zebra-node-services = { path = "../zebra-node-services" }
+zebrad = { path = "../zebrad" }
+zebra-consensus = { path = "../zebra-consensus", features = ["proptest-impl"] }
+zebra-network = { path = "../zebra-network" }
+zebra-test = { path = "../zebra-test" }
+zebra-chain = { path = "../zebra-chain", features = ["proptest-impl"] }
 
 [features]
 default = ["viz_gui"]
