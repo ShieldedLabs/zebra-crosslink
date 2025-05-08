@@ -281,10 +281,15 @@ pub struct MalValue {
 }
 
 impl MalValue {
+<<<<<<< HEAD
     pub fn new_block(value: BftBlock) -> Self {
         Self {
             value_bytes: value.zcash_serialize_to_vec().unwrap(),
         }
+=======
+    pub fn new(value: BftPayload, extensions: Bytes) -> Self {
+        Self { value, extensions }
+>>>>>>> 3777c20ba (extensions... and fmt)
     }
 
     pub fn id(&self) -> MalValueId {
