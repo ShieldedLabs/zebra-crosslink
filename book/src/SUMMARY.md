@@ -3,6 +3,7 @@
 [Zebra](README.md)
 
 - [Crosslink](crosslink.md)
+  - [Development Path](crosslink/devpath.md)
 - [User Documentation](user.md)
   - [System Requirements](user/requirements.md)
   - [Supported Platforms](user/supported-platforms.md)
