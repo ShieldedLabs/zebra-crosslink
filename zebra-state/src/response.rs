@@ -265,6 +265,9 @@ pub enum ReadResponse {
     #[cfg(feature = "getblocktemplate-rpcs")]
     /// Response to [`ReadRequest::TipBlockSize`]
     TipBlockSize(Option<usize>),
+
+    /// Response to [`ReadRequest::NonFinalizedChains`]
+    NonFinalizedChains(std::collections::BTreeSet<Arc<crate::service::non_finalized_state::Chain>>),
 }
 
 /// A structure with the information needed from the state to build a `getblocktemplate` RPC response.
@@ -346,6 +349,7 @@ impl TryFrom<ReadResponse> for Response {
             ReadResponse::ValidBestChainTipNullifiersAndAnchors => Ok(Response::ValidBestChainTipNullifiersAndAnchors),
 
             ReadResponse::UsageInfo(_)
+            | ReadResponse::NonFinalizedChains(_)
             | ReadResponse::TipPoolValues { .. }
             | ReadResponse::TransactionIdsForBlock(_)
             | ReadResponse::SaplingTree(_)

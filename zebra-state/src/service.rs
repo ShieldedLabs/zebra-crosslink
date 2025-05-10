@@ -2033,6 +2033,26 @@ impl Service<ReadRequest> for ReadStateService {
                 })
                 .wait_for_panics()
             }
+
+            ReadRequest::NonFinalizedChains => {
+                let state = self.clone();
+
+                tokio::task::spawn_blocking(move || {
+                    span.in_scope(move || {
+                        // Get the block at the best chain tip height.
+                        let chains = state.non_finalized_state_receiver.with_watch_data(
+                            |non_finalized_state: NonFinalizedState| {
+                                non_finalized_state.chain_set.clone()
+                            },
+                        );
+
+                        // The work is done in the future.
+                        timer.finish(module_path!(), line!(), "ReadRequest::NonFinalizedChains");
+                        Ok(ReadResponse::NonFinalizedChains(chains))
+                    })
+                })
+                .wait_for_panics()
+            }
         }
     }
 }

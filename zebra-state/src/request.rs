@@ -1186,6 +1186,9 @@ pub enum ReadRequest {
     /// Returns [`ReadResponse::TipBlockSize(usize)`](ReadResponse::TipBlockSize)
     /// with the current best chain tip block size in bytes.
     TipBlockSize,
+
+    /// Get all information on non-finalized chains
+    NonFinalizedChains,
 }
 
 impl ReadRequest {
@@ -1226,6 +1229,7 @@ impl ReadRequest {
             ReadRequest::CheckBlockProposalValidity(_) => "check_block_proposal_validity",
             #[cfg(feature = "getblocktemplate-rpcs")]
             ReadRequest::TipBlockSize => "tip_block_size",
+            ReadRequest::NonFinalizedChains => "non_finalized_chains",
         }
     }
 

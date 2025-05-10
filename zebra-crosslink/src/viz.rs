@@ -533,7 +533,7 @@ pub async fn service_viz_requests(
         new_g.consumed = false;
 
         #[allow(clippy::never_loop)]
-        let (lo_height, bc_tip, hashes, blocks) = loop {
+        let (lo_height, bc_tip, height_hashes, blocks) = loop {
             let (lo, hi) = (new_g.bc_req_h.0, new_g.bc_req_h.1);
             assert!(
                 lo <= hi || (lo >= 0 && hi < 0),
@@ -600,9 +600,42 @@ pub async fn service_viz_requests(
                 break (BlockHeight(0), None, Vec::new(), Vec::new());
             };
 
-            let (hashes, blocks) =
+            let (hashes, mut blocks) =
                 tfl_block_sequence(&call, lo_height_hash.1, Some(hi_height_hash), true, true).await;
-            break (lo_height_hash.0, Some(tip_height_hash), hashes, blocks);
+
+            let mut height_hashes = Vec::with_capacity(hashes.len());
+            for i in 0..hashes.len() {
+                height_hashes.push((BlockHeight(lo_height_hash.0.0 + i as u32), hashes[i]));
+            }
+
+
+            // get sidechains (NOTE: this will duplicate some data that gets deduplicated later)
+            if hi_height_hash.0 > tip_height_hash.0.sat_sub(zebra_state::MAX_BLOCK_REORG_HEIGHT as i32) {
+                if let Ok(ReadStateResponse::NonFinalizedChains(chain_set)) =
+                    (call.read_state)(ReadStateRequest::NonFinalizedChains).await {
+                    for chain in chain_set {
+                        let root_height = chain.non_finalized_root_height();
+                        let mut height = root_height;
+                        loop {
+                            let (block, hash) = if let Some(block) = chain.block(height.into()) {
+                                // NOTE: this conversion is *just* to work around visibility
+                                // because ContextuallyVerifiedBlock's block data is private
+                                // but SemanticallyVerifiedBlock's is public...
+                                let block = zebra_state::SemanticallyVerifiedBlock::from(block.clone());
+                                (block.block, block.hash)
+                            } else {
+                                break;
+                            };
+
+                            blocks.push(Some(block));
+                            height_hashes.push((height, hash));
+                            height = (height + 1).unwrap();
+                        }
+                    }
+                }
+            }
+
+            break (lo_height_hash.0, Some(tip_height_hash), height_hashes, blocks);
         };
 
         let (bft_blocks, internal_proposed_bft_string) = {
@@ -612,11 +645,6 @@ pub async fn service_viz_requests(
                 internal.proposed_bft_string.clone(),
             )
         };
-
-        let mut height_hashes = Vec::with_capacity(hashes.len());
-        for i in 0..hashes.len() {
-            height_hashes.push((BlockHeight(lo_height.0 + i as u32), hashes[i]));
-        }
 
         let new_state = VizState {
             latest_final_block: tfl_final_block_height_hash(tfl_handle.clone()).await,
@@ -2131,6 +2159,7 @@ pub async fn viz_main(
         let spring_method = SpringMethod::Coeff;
 
         // calculate forces
+        let z_calculate_forces = begin_zone("calculate forces");
         let spring_stiffness = 160.;
         for node_i in 0..ctx.nodes.len() {
             if Some(node_i) == drag_node_ref {
@@ -2292,6 +2321,7 @@ pub async fn viz_main(
                 }
             }
         }
+        end_zone(z_calculate_forces);
 
         if true {
             // apply forces

@@ -46,7 +46,7 @@ pub struct NonFinalizedState {
     /// The best chain is [`NonFinalizedState::best_chain()`], or `chain_iter().next()`.
     /// Using `chain_set.last()` or `chain_set.iter().next_back()` is deprecated,
     /// callers should migrate to `chain_iter().next()`.
-    chain_set: BTreeSet<Arc<Chain>>,
+    pub chain_set: BTreeSet<Arc<Chain>>,
 
     /// Blocks that have been invalidated in, and removed from, the non finalized
     /// state.
