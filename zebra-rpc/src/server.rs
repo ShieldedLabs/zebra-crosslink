@@ -95,7 +95,6 @@ impl RpcServer {
         Mempool,
         TFLService,
         State,
-        ReadState,
         Tip,
         BlockVerifierRouter,
         SyncStatus,
