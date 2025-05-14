@@ -1,3 +1,5 @@
+//! This crate contains rollback tests for the Crosslink service.
+
 use color_eyre::eyre::Result;
 use std::{sync::Arc, time::Duration};
 use tower::{Service, ServiceExt};
@@ -13,7 +15,6 @@ use zebra_chain::{
 };
 use zebra_consensus::router::init_test;
 use zebra_crosslink::service::{spawn_new_tfl_service, TFLServiceRequest};
-use zebra_crosslink_chain::params::PrototypeParameters;
 use zebra_network::address_book_peers::MockAddressBookPeers;
 use zebra_node_services::mempool;
 use zebra_rpc::methods::GetBlockTemplateRpcServer;
@@ -131,7 +132,7 @@ async fn crosslink_nu5_rollback() -> Result<()> {
         blocks.push(block);
     }
 
-    let (tfl_service_handle, tfl_task) = spawn_new_tfl_service::<PrototypeParameters>(
+    let (tfl_service_handle, tfl_task) = spawn_new_tfl_service(
         Arc::new(move |req: ReadRequest| {
             let mut read_state = read_state_for_tfl.clone();
             Box::pin(async move {
