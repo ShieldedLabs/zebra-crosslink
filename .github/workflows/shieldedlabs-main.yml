@@ -1,0 +1,62 @@
+permissions:
+  contents: write
+  packages: read
+
+on:
+  push:
+    branches: [main, 'ms[0-9]+']
+    tags-ignore: ['v*']   # avoid recursion
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: ubuntu-22.04
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+    - uses: actions/checkout@v4
+      with: { fetch-depth: 0 }
+
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: 1.77.2
+        components: clippy, rustfmt
+
+    - run: cargo fmt --check
+    - run: cargo clippy -- -D warnings
+    - run: cargo test --all
+    - run: cargo build --release --locked
+
+    # Derive version from Cargo.toml
+    - id: cargo_meta
+      run: |
+        VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[0].version')
+        echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+    # Create a tag if it doesn't already exist
+    - run: |
+        if ! git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+          git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          git push origin "v${VERSION}"
+        else
+          echo "Tag v${VERSION} already exists"
+        fi
+
+    # Create a GitHub release and attach the binary
+    - uses: ncipollo/release-action@v1
+      with:
+        tag: v${{ env.VERSION }}
+        name: v${{ env.VERSION }}
+        artifacts: target/release/zebra
+        generateReleaseNotes: true
