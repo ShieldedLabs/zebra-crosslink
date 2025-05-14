@@ -8692,15 +8692,21 @@ dependencies = [
  "tokio-stream",
  "toml 0.8.19",
  "tower 0.4.13",
+ "tower-service",
  "tracing",
  "tracing-appender",
  "tracing-error",
  "tracing-futures",
  "tracing-subscriber",
  "zebra-chain",
+ "zebra-consensus",
  "zebra-crosslink-chain",
+ "zebra-network",
+ "zebra-node-services",
+ "zebra-rpc",
  "zebra-state",
  "zebra-test",
+ "zebrad",
 ]
 
 [[package]]
