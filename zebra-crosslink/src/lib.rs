@@ -2,7 +2,6 @@
 
 #![allow(unused)]
 #![allow(clippy::print_stdout)]
-#![allow(unexpected_cfgs, unused, missing_docs)]
 
 use color_eyre::install;
 
