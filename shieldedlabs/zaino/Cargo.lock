@@ -7768,6 +7768,23 @@ dependencies = [
  "zebra-crosslink-chain",
  "zebra-state",
  "zebra-test",
+<<<<<<< HEAD:shieldedlabs/zaino/Cargo.lock
+=======
+ "zerocopy 0.8.25",
+ "zerocopy-derive 0.8.25",
+]
+
+[[package]]
+name = "zebra-crosslink-chain"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "serde",
+ "static_assertions",
+ "thiserror 2.0.11",
+ "tracing",
+ "zebra-chain",
+>>>>>>> b364bd94e (Add fields for version number, height and previous block hash.):Cargo.lock
 ]
 
 [[package]]

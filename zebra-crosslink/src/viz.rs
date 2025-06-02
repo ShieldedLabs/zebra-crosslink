@@ -2396,6 +2396,7 @@ pub async fn viz_main(
                             ctx.bft_fake_id + 1
                         };
 
+<<<<<<< HEAD
                         let bft_block = BftBlock {
                             version: 0,
                             height: 0,
@@ -2427,6 +2428,17 @@ pub async fn viz_main(
                                         BlockHeight(bc.unwrap()),
                                     );
                                     if node_i.is_none() {
+=======
+                        let payload = VizBftPayload {
+                            min_payload_h: BlockHeight(0),
+                            payload: BftPayload {
+                                version: 0,
+                                height: 0,
+                                previous_block_hash: zebra_chain::block::Hash([0u8; 32]),
+                                headers: loop {
+                                    let bc: Option<u32> = target_bc_str.trim().parse().ok();
+                                    if bc.is_none() {
+>>>>>>> b364bd94e (Add fields for version number, height and previous block hash.)
                                         break Vec::new();
                                     }
 
@@ -2688,12 +2700,23 @@ pub async fn viz_main(
                     }
 
                     NodeKind::BFT => {
+<<<<<<< HEAD
                         let bft_block = BftBlock {
                             version: 0,
                             height: 0,
                             previous_block_fat_ptr: FatPointerToBftBlock::null(),
                             finalization_candidate_height: 0,
                             headers: Vec::new(),
+=======
+                        let header = VizBftPayload {
+                            min_payload_h: BlockHeight(0),
+                            payload: BftPayload {
+                                version: 0,
+                                height: 0,
+                                previous_block_hash: zebra_chain::block::Hash([0u8; 32]),
+                                headers: Vec::new(),
+                            },
+>>>>>>> b364bd94e (Add fields for version number, height and previous block hash.)
                         };
 
                         let id = NodeId::Hash(bft_block.blake3_hash().0);

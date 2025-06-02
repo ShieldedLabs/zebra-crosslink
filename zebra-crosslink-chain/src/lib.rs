@@ -5,11 +5,14 @@
 //! This crate is named similarly to [zebra_chain] since it has a similar scope. In a mature crosslink-enabled Zebra these two crates may be merged.
 #![deny(unsafe_code, missing_docs)]
 
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use thiserror::Error;
 use tracing::error;
 use zebra_chain::block::Header as BcBlockHeader;
+
+use zebra_chain::serialization::{SerializationError, ZcashDeserialize, ZcashSerialize};
 
 /// The BFT block content for Crosslink
 ///
@@ -53,8 +56,62 @@ use zebra_chain::block::Header as BcBlockHeader;
 /// [^1]: [Zcash Trailing Finality Layer §3.3.3 Structural Additions](https://electric-coin-company.github.io/tfl-book/design/crosslink/construction.html#structural-additions)
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct BftPayload {
+    /// The Version Number
+    pub version: u32,
+    /// The Height of this BFT Payload
+    pub height: u32,
+    /// Hash of the previous BFT Block. Not the previous payload!
+    pub previous_block_hash: zebra_chain::block::Hash,
     /// The PoW Headers
     pub headers: Vec<BcBlockHeader>,
+}
+
+impl ZcashSerialize for BftPayload {
+    #[allow(clippy::unwrap_in_result)]
+    fn zcash_serialize<W: std::io::Write>(&self, mut writer: W) -> Result<(), std::io::Error> {
+        writer.write_u32::<LittleEndian>(self.version)?;
+        writer.write_u32::<LittleEndian>(self.height)?;
+        self.previous_block_hash.zcash_serialize(&mut writer)?;
+        writer.write_u32::<LittleEndian>(self.headers.len().try_into().unwrap())?;
+        for header in &self.headers {
+            header.zcash_serialize(&mut writer)?;
+        }
+        Ok(())
+    }
+}
+
+impl ZcashDeserialize for BftPayload {
+    fn zcash_deserialize<R: std::io::Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let version = reader.read_u32::<LittleEndian>()?;
+        let height = reader.read_u32::<LittleEndian>()?;
+        let previous_block_hash = zebra_chain::block::Hash::zcash_deserialize(&mut reader)?;
+        let header_count = reader.read_u32::<LittleEndian>()?;
+        if header_count > 2048 {
+            // Fail on unreasonably large number.
+            return Err(SerializationError::Parse(
+                "header_count was greater than 2048.",
+            ));
+        }
+        let mut array = Vec::new();
+        for i in 0..header_count {
+            array.push(zebra_chain::block::Header::zcash_deserialize(&mut reader)?);
+        }
+
+        Ok(BftPayload {
+            version,
+            height,
+            previous_block_hash,
+            headers: array,
+        })
+    }
+}
+
+/// The wrapper around the BftPayload that also contains the finalizer signatures allowing the Block to be
+/// validated offline. The signatures are not included yet! D:
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct BftBlock {
+    /// The inner payload
+    pub payload: BftPayload,
 }
 
 impl BftPayload {
@@ -68,6 +125,8 @@ impl BftPayload {
     /// Attempt to construct a [BftPayload] from headers while performing immediate validations; see [BftPayload] type docs
     pub fn try_from(
         params: &ZcashCrosslinkParameters,
+        height: u32,
+        previous_block_hash: zebra_chain::block::Hash,
         headers: Vec<BcBlockHeader>,
     ) -> Result<Self, InvalidBftPayload> {
         let expected = params.bc_confirmation_depth_sigma + 1;
@@ -78,7 +137,12 @@ impl BftPayload {
 
         error!("not yet implemented: all the documented validations");
 
-        Ok(BftPayload { headers })
+        Ok(BftPayload {
+            version: 0,
+            height,
+            previous_block_hash,
+            headers,
+        })
     }
 }
 

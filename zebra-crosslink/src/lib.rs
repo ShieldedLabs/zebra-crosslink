@@ -1286,7 +1286,7 @@ async fn tfl_service_main_loop<ZCP: ZcashCrosslinkParameters>(
                                                         panic!("TODO: improve error handling.");
                                                     };
 
-                                                    break match BftPayload::try_from(params, headers) {
+                                                    break match BftPayload::try_from(params, current_bft_height.as_u64() as u32, zebra_chain::block::Hash([0u8; 32]), headers) {
                                                         Ok(v) => Some(v),
                                                         Err(e) => { warn!("Unable to create BftPayload to propose, Error={:?}", e,); None }
                                                     };
@@ -1315,7 +1315,7 @@ async fn tfl_service_main_loop<ZCP: ZcashCrosslinkParameters>(
                                                         round,
                                                         valid_round: MalRound::Nil,
                                                         proposer: my_address,
-                                                        value: MalValue::new(payload, extensions),
+                                                        value: MalValue::new(payload),
                                                         validity: MalValidity::Valid,
                                                     };
                                                     prev_bft_values.insert((height.as_u64(), round.as_i64()), val.clone());
@@ -1369,6 +1369,7 @@ async fn tfl_service_main_loop<ZCP: ZcashCrosslinkParameters>(
 =======
                                             // Data
                                             {
+<<<<<<< HEAD
                                                 let pieces : Vec<MalStreamedProposalData> = proposal.value.fracture_into_pieces();
                                                 for piece in pieces {
                                                     hasher.update(&piece.data_bytes);
@@ -1376,6 +1377,11 @@ async fn tfl_service_main_loop<ZCP: ZcashCrosslinkParameters>(
                                                     parts.push(MalStreamedProposalPart::Data(piece));
 >>>>>>> 3777c20ba (extensions... and fmt)
                                                 }
+=======
+                                                let piece = MalStreamedProposalData { data_bytes: proposal.value.value.zcash_serialize_to_vec().unwrap() };
+                                                hasher.update(&piece.data_bytes);
+                                                parts.push(MalStreamedProposalPart::Data(piece));
+>>>>>>> b364bd94e (Add fields for version number, height and previous block hash.)
                                             }
 
                                             // Fin
@@ -1526,8 +1532,20 @@ async fn tfl_service_main_loop<ZCP: ZcashCrosslinkParameters>(
                                             // HACK: ensure there are enough blocks to overwrite this at the correct index
                                             for i in internal.bft_blocks.len()..=insert_i {
                                                 let parent_i = i.saturating_sub(1); // just a simple chain
+<<<<<<< HEAD
                                                 internal.bft_blocks.push((parent_i, BftPayload {
                                                     headers: Vec::new()
+=======
+                                                internal.bft_blocks.push((parent_i,
+                                                VizBftPayload {
+                                                    min_payload_h: BlockHeight(0),
+                                                    payload: BftPayload {
+                                                        version: 0,
+                                                        height: i as u32,
+                                                        previous_block_hash: zebra_chain::block::Hash([0u8; 32]),
+                                                        headers: Vec::new(),
+                                                    }
+>>>>>>> b364bd94e (Add fields for version number, height and previous block hash.)
                                                 }));
                                             }
 
@@ -1674,7 +1692,9 @@ async fn tfl_service_main_loop<ZCP: ZcashCrosslinkParameters>(
                                                     let init = parts.init().unwrap();
 
                                                     let pieces : Vec<MalStreamedProposalData> = parts.parts.iter().filter_map(|part| part.as_data()).cloned().collect();
-                                                    let value = MalValue::reconstruct_from_pieces(&pieces);
+                                                    assert!(pieces.len() == 1);
+                                                    let piece = &pieces[0];
+                                                    let value = MalValue::new(piece.data_bytes.zcash_deserialize_into::<BftPayload>().unwrap());
 
                                                     MalProposedValue {
                                                         height: parts.height,

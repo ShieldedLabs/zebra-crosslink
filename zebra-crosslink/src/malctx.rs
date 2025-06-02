@@ -12,7 +12,11 @@ use malachitebft_core_types::{
 use serde::{Deserialize, Serialize};
 
 use malachitebft_proto::{Error as ProtoError, Protobuf};
+<<<<<<< HEAD
 use zebra_chain::serialization::{ZcashDeserialize, ZcashDeserializeInto, ZcashSerialize};
+=======
+use zebra_chain::serialization::ZcashDeserializeInto;
+>>>>>>> b364bd94e (Add fields for version number, height and previous block hash.)
 
 use core::fmt;
 
@@ -277,6 +281,7 @@ impl Protobuf for MalValueId {
 /// The value to decide on
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct MalValue {
+<<<<<<< HEAD
     pub value_bytes: Vec<u8>, // BftBlock,
 }
 
@@ -294,6 +299,28 @@ impl MalValue {
 
     pub fn id(&self) -> MalValueId {
         MalValueId(Blake3Hash(blake3::hash(&self.value_bytes).into()))
+=======
+    pub value: BftPayload,
+}
+
+impl MalValue {
+    pub fn new(value: BftPayload) -> Self {
+        Self { value }
+    }
+
+    pub fn id(&self) -> MalValueId {
+        let mut acc: u64 = 0;
+        for header in &self.value.headers {
+            let hash = header.hash().0;
+            let h1 = u64::from_le_bytes(hash[0..8].try_into().unwrap());
+            let h2 = u64::from_le_bytes(hash[8..16].try_into().unwrap());
+            let h3 = u64::from_le_bytes(hash[16..24].try_into().unwrap());
+            let h4 = u64::from_le_bytes(hash[24..32].try_into().unwrap());
+            acc ^= h1 ^ h2 ^ h3 ^ h4;
+        }
+        // NOTE(Sam): I do not think this is supposed to include extensions?
+        MalValueId(acc)
+>>>>>>> b364bd94e (Add fields for version number, height and previous block hash.)
     }
 }
 
@@ -315,16 +342,29 @@ impl Protobuf for MalValue {
             .ok_or_else(|| ProtoError::missing_field::<Self::Proto>("value"))?;
 
         Ok(MalValue {
+<<<<<<< HEAD
             value_bytes: value_bytes.to_vec(),
+=======
+            value: value_bytes
+                .zcash_deserialize_into()
+                .map_err(|e| ProtoError::Other(format!("ZCashDeserializeError: {:?}", e)))?,
+>>>>>>> b364bd94e (Add fields for version number, height and previous block hash.)
         })
     }
 
     #[cfg_attr(coverage_nightly, coverage(off))]
     fn to_proto(&self) -> Result<Self::Proto, ProtoError> {
         use bytes::BufMut;
+<<<<<<< HEAD
 
         Ok(malctx_schema_proto::Value {
             value: Some(self.value_bytes.clone().into()),
+=======
+        use zebra_chain::serialization::ZcashSerialize;
+
+        Ok(malctx_schema_proto::Value {
+            value: Some(self.value.zcash_serialize_to_vec().unwrap().into()),
+>>>>>>> b364bd94e (Add fields for version number, height and previous block hash.)
         })
     }
 }
