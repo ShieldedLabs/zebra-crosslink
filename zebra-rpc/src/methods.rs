@@ -39,7 +39,10 @@ use zebra_chain::{
     chain_sync_status::ChainSyncStatus,
     chain_tip::{ChainTip, NetworkChainTipHeightEstimator},
     parameters::{
-        subsidy::{FundingStreamReceiver, ParameterSubsidy},
+        subsidy::{
+            block_subsidy, funding_stream_values, miner_subsidy, FundingStreamReceiver,
+            ParameterSubsidy,
+        },
         ConsensusBranchId, Network, NetworkUpgrade, POW_AVERAGING_WINDOW,
     },
     primitives,
@@ -1315,7 +1318,7 @@ where
         let response = state.oneshot(request).await.map_misc_error()?;
 
         match response {
-            zebra_state::ReadResponse::AddressBalance(balance) => Ok(AddressBalance {
+            zebra_state::ReadResponse::AddressBalance { balance, .. } => Ok(AddressBalance {
                 balance: u64::from(balance),
             }),
             _ => unreachable!("Unexpected response from state service: {response:?}"),
