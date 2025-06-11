@@ -835,6 +835,23 @@ pub trait Rpc {
     /// method: post
     /// tags: generating
     async fn generate(&self, num_blocks: u32) -> Result<Vec<GetBlockHash>>;
+
+    #[method(name = "addnode")]
+    /// Add or remove a node from the address book.
+    ///
+    /// # Parameters
+    ///
+    /// - `addr`: (string, required) The address of the node to add or remove.
+    /// - `command`: (string, required) The command to execute, either "add", "onetry", or "remove".
+    ///
+    /// # Notes
+    ///
+    /// Only the "add" command is currently supported.
+    ///
+    /// zcashd reference: [`addnode`](https://zcash.github.io/rpc/addnode.html)
+    /// method: post
+    /// tags: network
+    async fn add_node(&self, addr: PeerSocketAddr, command: AddNodeCommand) -> Result<()>;
 }
 
 /// RPC method implementations.
@@ -3325,6 +3342,35 @@ where
 
         Ok(block_hashes)
     }
+
+    async fn add_node(
+        &self,
+        addr: zebra_network::PeerSocketAddr,
+        command: AddNodeCommand,
+    ) -> Result<()> {
+        if self.network.is_regtest() {
+            match command {
+                AddNodeCommand::Add => {
+                    tracing::info!(?addr, "adding peer address to the address book");
+                    if self.address_book.clone().add_peer(addr) {
+                        Ok(())
+                    } else {
+                        return Err(ErrorObject::owned(
+                            ErrorCode::InvalidParams.code(),
+                            format!("peer address was already present in the address book: {addr}"),
+                            None::<()>,
+                        ));
+                    }
+                }
+            }
+        } else {
+            return Err(ErrorObject::owned(
+                ErrorCode::InvalidParams.code(),
+                "addnode command is only supported on regtest",
+                None::<()>,
+            ));
+        }
+    }
 }
 
 // TODO: Move the code below to separate modules.
@@ -4616,4 +4662,12 @@ where
 
     // Invert the division to give approximately: `work(difficulty) / work(pow_limit)`
     Ok(pow_limit / difficulty)
+}
+
+/// Commands for the `addnode` RPC method.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum AddNodeCommand {
+    /// Add a node to the address book.
+    #[serde(rename = "add")]
+    Add,
 }
