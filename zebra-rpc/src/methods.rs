@@ -910,10 +910,6 @@ where
     /// no matter what the estimated height or local clock is.
     debug_force_finished_sync: bool,
 
-    /// Test-only option that makes RPC responses more like `zcashd`.
-    #[allow(dead_code)]
-    debug_like_zcashd: bool,
-
     // Services
     //
     /// A handle to the mempool service.
@@ -992,7 +988,6 @@ where
             .field("user_agent", &self.user_agent)
             .field("network", &self.network)
             .field("debug_force_finished_sync", &self.debug_force_finished_sync)
-            .field("debug_like_zcashd", &self.debug_like_zcashd)
             .field("getblocktemplate", &self.gbt)
             .finish()
     }
@@ -1086,7 +1081,6 @@ where
             user_agent,
             network: network.clone(),
             debug_force_finished_sync,
-            debug_like_zcashd: mining_config.debug_like_zcashd,
             mempool: mempool.clone(),
             tfl_service,
             state: state.clone(),
@@ -2106,12 +2100,9 @@ where
 
         use zebra_chain::block::MAX_BLOCK_BYTES;
 
-        // Determines whether the output of this RPC is sorted like zcashd
-        let should_use_zcashd_order = self.debug_like_zcashd;
-
         let mut mempool = self.mempool.clone();
 
-        let request = if should_use_zcashd_order || verbose {
+        let request = if verbose {
             mempool::Request::FullTransactions
         } else {
             mempool::Request::TransactionIds
@@ -2588,7 +2579,6 @@ where
     ) -> Result<get_block_template::Response> {
         // Clone Configs
         let network = self.network.clone();
-        let debug_like_zcashd = self.debug_like_zcashd;
         let extra_coinbase_data = self.gbt.extra_coinbase_data();
 
         // Clone Services
@@ -2880,7 +2870,6 @@ where
             &miner_address,
             mempool_txs,
             mempool_tx_deps,
-            debug_like_zcashd,
             extra_coinbase_data.clone(),
         );
 
@@ -2901,7 +2890,6 @@ where
             server_long_poll_id,
             mempool_txs,
             submit_old,
-            debug_like_zcashd,
             extra_coinbase_data,
         );
 
@@ -3323,7 +3311,6 @@ where
             let proposal_block = proposal_block_from_template(
                 &block_template,
                 get_block_template::TimeSource::CurTime,
-                NetworkUpgrade::current(&network, Height(block_template.height)),
             )
             .map_error(server::error::LegacyCode::default())?;
             let hex_proposal_block = HexData(
