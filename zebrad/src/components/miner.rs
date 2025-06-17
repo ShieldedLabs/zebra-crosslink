@@ -39,6 +39,8 @@ use zebra_rpc::methods::{
 };
 use zebra_state::WatchReceiver;
 
+use crate::components::metrics::Config;
+
 /// The amount of time we wait between block template retries.
 pub const BLOCK_TEMPLATE_WAIT_TIME: Duration = Duration::from_secs(20);
 
@@ -83,6 +85,15 @@ where
         + 'static,
     TFLService::Future: Send,
     State: Service<
+            zebra_state::Request,
+            Response = zebra_state::Response,
+            Error = zebra_state::BoxError,
+        > + Clone
+        + Send
+        + Sync
+        + 'static,
+    <State as Service<zebra_state::Request>>::Future: Send,
+    ReadState: Service<
             zebra_state::ReadRequest,
             Response = zebra_state::ReadResponse,
             Error = zebra_state::BoxError,
@@ -90,7 +101,7 @@ where
         + Send
         + Sync
         + 'static,
-    <State as Service<zebra_state::ReadRequest>>::Future: Send,
+    <ReadState as Service<zebra_state::ReadRequest>>::Future: Send,
     Tip: ChainTip + Clone + Send + Sync + 'static,
     BlockVerifierRouter: Service<zebra_consensus::Request, Response = block::Hash, Error = zebra_consensus::BoxError>
         + Clone
@@ -102,7 +113,7 @@ where
     AddressBook: AddressBookPeers + Clone + Send + Sync + 'static,
 {
     // TODO: spawn an entirely new executor here, so mining is isolated from higher priority tasks.
-    tokio::spawn(init(rpc).in_current_span())
+    tokio::spawn(init(config.clone(), rpc).in_current_span())
 }
 
 /// Initialize the miner based on its config.
@@ -112,6 +123,7 @@ where
 ///
 /// See [`run_mining_solver()`] for more details.
 <<<<<<< HEAD
+<<<<<<< HEAD
 pub async fn init<Mempool, TFLService, State, Tip, BlockVerifierRouter, SyncStatus, AddressBook>(
     network: Network,
     _config: Config,
@@ -120,6 +132,11 @@ pub async fn init<Mempool, TFLService, State, Tip, BlockVerifierRouter, SyncStat
 pub async fn init<Mempool, State, Tip, BlockVerifierRouter, SyncStatus, AddressBook>(
     rpc: RpcImpl<Mempool, State, Tip, AddressBook, BlockVerifierRouter, SyncStatus>,
 >>>>>>> 78fd2d51d (Remove `debug_like_zcashd` config option (#9627))
+=======
+pub async fn init<Mempool, State, ReadState, Tip, BlockVerifierRouter, SyncStatus, AddressBook>(
+    _config: Config,
+    rpc: RpcImpl<Mempool, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>,
+>>>>>>> 744a3db92 (feat(rpc): Add `invalidateblock` and `reconsiderblock` RPC methods (#9551))
 ) -> Result<(), Report>
 where
     Mempool: Service<
@@ -141,6 +158,15 @@ where
         + 'static,
     TFLService::Future: Send,
     State: Service<
+            zebra_state::Request,
+            Response = zebra_state::Response,
+            Error = zebra_state::BoxError,
+        > + Clone
+        + Send
+        + Sync
+        + 'static,
+    <State as Service<zebra_state::Request>>::Future: Send,
+    ReadState: Service<
             zebra_state::ReadRequest,
             Response = zebra_state::ReadResponse,
             Error = zebra_state::BoxError,
@@ -148,7 +174,7 @@ where
         + Send
         + Sync
         + 'static,
-    <State as Service<zebra_state::ReadRequest>>::Future: Send,
+    <ReadState as Service<zebra_state::ReadRequest>>::Future: Send,
     Tip: ChainTip + Clone + Send + Sync + 'static,
     BlockVerifierRouter: Service<zebra_consensus::Request, Response = block::Hash, Error = zebra_consensus::BoxError>
         + Clone
@@ -233,17 +259,22 @@ pub async fn generate_block_templates<
     Mempool,
     TFLService,
     State,
+    ReadState,
     Tip,
     BlockVerifierRouter,
     SyncStatus,
     AddressBook,
 >(
 <<<<<<< HEAD
+<<<<<<< HEAD
     network: Network,
     rpc: RpcImpl<Mempool, TFLService, State, Tip, AddressBook, BlockVerifierRouter, SyncStatus>,
 =======
     rpc: RpcImpl<Mempool, State, Tip, AddressBook, BlockVerifierRouter, SyncStatus>,
 >>>>>>> 78fd2d51d (Remove `debug_like_zcashd` config option (#9627))
+=======
+    rpc: RpcImpl<Mempool, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>,
+>>>>>>> 744a3db92 (feat(rpc): Add `invalidateblock` and `reconsiderblock` RPC methods (#9551))
     template_sender: watch::Sender<Option<Arc<Block>>>,
 ) -> Result<(), Report>
 where
@@ -266,6 +297,15 @@ where
         + 'static,
     TFLService::Future: Send,
     State: Service<
+            zebra_state::Request,
+            Response = zebra_state::Response,
+            Error = zebra_state::BoxError,
+        > + Clone
+        + Send
+        + Sync
+        + 'static,
+    <State as Service<zebra_state::Request>>::Future: Send,
+    ReadState: Service<
             zebra_state::ReadRequest,
             Response = zebra_state::ReadResponse,
             Error = zebra_state::BoxError,
@@ -273,7 +313,7 @@ where
         + Send
         + Sync
         + 'static,
-    <State as Service<zebra_state::ReadRequest>>::Future: Send,
+    <ReadState as Service<zebra_state::ReadRequest>>::Future: Send,
     Tip: ChainTip + Clone + Send + Sync + 'static,
     BlockVerifierRouter: Service<zebra_consensus::Request, Response = block::Hash, Error = zebra_consensus::BoxError>
         + Clone
@@ -357,8 +397,13 @@ where
 #[instrument(skip(template_receiver, rpc))]
 pub async fn run_mining_solver<
     Mempool,
+<<<<<<< HEAD
     TFLService,
     State,
+=======
+    State,
+    ReadState,
+>>>>>>> 744a3db92 (feat(rpc): Add `invalidateblock` and `reconsiderblock` RPC methods (#9551))
     Tip,
     BlockVerifierRouter,
     SyncStatus,
@@ -366,7 +411,11 @@ pub async fn run_mining_solver<
 >(
     solver_id: u8,
     mut template_receiver: WatchReceiver<Option<Arc<Block>>>,
+<<<<<<< HEAD
     rpc: RpcImpl<Mempool, TFLService, State, Tip, AddressBook, BlockVerifierRouter, SyncStatus>,
+=======
+    rpc: RpcImpl<Mempool, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>,
+>>>>>>> 744a3db92 (feat(rpc): Add `invalidateblock` and `reconsiderblock` RPC methods (#9551))
 ) -> Result<(), Report>
 where
     Mempool: Service<
@@ -388,6 +437,15 @@ where
         + 'static,
     TFLService::Future: Send,
     State: Service<
+            zebra_state::Request,
+            Response = zebra_state::Response,
+            Error = zebra_state::BoxError,
+        > + Clone
+        + Send
+        + Sync
+        + 'static,
+    <State as Service<zebra_state::Request>>::Future: Send,
+    ReadState: Service<
             zebra_state::ReadRequest,
             Response = zebra_state::ReadResponse,
             Error = zebra_state::BoxError,
@@ -395,7 +453,7 @@ where
         + Send
         + Sync
         + 'static,
-    <State as Service<zebra_state::ReadRequest>>::Future: Send,
+    <ReadState as Service<zebra_state::ReadRequest>>::Future: Send,
     Tip: ChainTip + Clone + Send + Sync + 'static,
     BlockVerifierRouter: Service<zebra_consensus::Request, Response = block::Hash, Error = zebra_consensus::BoxError>
         + Clone
