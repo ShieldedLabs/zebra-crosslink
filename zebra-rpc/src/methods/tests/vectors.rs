@@ -196,8 +196,8 @@ async fn rpc_getblock() {
 
     // Create a continuous chain of mainnet blocks from genesis
     let blocks: Vec<Arc<Block>> = zebra_test::vectors::CONTINUOUS_MAINNET_BLOCKS
-        .iter()
-        .map(|(_height, block_bytes)| block_bytes.zcash_deserialize_into().unwrap())
+        .values()
+        .map(|block_bytes| block_bytes.zcash_deserialize_into().unwrap())
         .collect();
 
     let mut mempool: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
@@ -846,8 +846,8 @@ async fn rpc_getblockheader() {
 
     // Create a continuous chain of mainnet blocks from genesis
     let blocks: Vec<Arc<Block>> = zebra_test::vectors::CONTINUOUS_MAINNET_BLOCKS
-        .iter()
-        .map(|(_height, block_bytes)| block_bytes.zcash_deserialize_into().unwrap())
+        .values()
+        .map(|block_bytes| block_bytes.zcash_deserialize_into().unwrap())
         .collect();
 
     let mut mempool: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
@@ -981,8 +981,8 @@ async fn rpc_getbestblockhash() {
 
     // Create a continuous chain of mainnet blocks from genesis
     let blocks: Vec<Arc<Block>> = zebra_test::vectors::CONTINUOUS_MAINNET_BLOCKS
-        .iter()
-        .map(|(_height, block_bytes)| block_bytes.zcash_deserialize_into().unwrap())
+        .values()
+        .map(|block_bytes| block_bytes.zcash_deserialize_into().unwrap())
         .collect();
 
     // Get the hash of the block at the tip using hardcoded block tip bytes.
@@ -1041,8 +1041,8 @@ async fn rpc_getrawtransaction() {
 
     // Create a continuous chain of mainnet blocks from genesis
     let blocks: Vec<Arc<Block>> = zebra_test::vectors::CONTINUOUS_MAINNET_BLOCKS
-        .iter()
-        .map(|(_height, block_bytes)| block_bytes.zcash_deserialize_into().unwrap())
+        .values()
+        .map(|block_bytes| block_bytes.zcash_deserialize_into().unwrap())
         .collect();
 
     let mut mempool: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
@@ -1242,8 +1242,8 @@ async fn rpc_getaddresstxids_invalid_arguments() {
 
     // Create a continuous chain of mainnet blocks from genesis
     let blocks: Vec<Arc<Block>> = zebra_test::vectors::CONTINUOUS_MAINNET_BLOCKS
-        .iter()
-        .map(|(_height, block_bytes)| block_bytes.zcash_deserialize_into().unwrap())
+        .values()
+        .map(|block_bytes| block_bytes.zcash_deserialize_into().unwrap())
         .collect();
 
     // Create a populated state service
@@ -1319,8 +1319,8 @@ async fn rpc_getaddresstxids_response() {
     for network in Network::iter() {
         let blocks: Vec<Arc<Block>> = network
             .blockchain_map()
-            .iter()
-            .map(|(_height, block_bytes)| block_bytes.zcash_deserialize_into().unwrap())
+            .values()
+            .map(|block_bytes| block_bytes.zcash_deserialize_into().unwrap())
             .collect();
         // The first few blocks after genesis send funds to the same founders reward address,
         // in one output per coinbase transaction.
@@ -1551,8 +1551,8 @@ async fn rpc_getaddressutxos_response() {
     let _init_guard = zebra_test::init();
 
     let blocks: Vec<Arc<Block>> = zebra_test::vectors::CONTINUOUS_MAINNET_BLOCKS
-        .iter()
-        .map(|(_height, block_bytes)| block_bytes.zcash_deserialize_into().unwrap())
+        .values()
+        .map(|block_bytes| block_bytes.zcash_deserialize_into().unwrap())
         .collect();
 
     // get the first transaction of the first block
@@ -1608,8 +1608,8 @@ async fn rpc_getblockcount() {
 
     // Create a continuous chain of mainnet blocks from genesis
     let blocks: Vec<Arc<Block>> = zebra_test::vectors::CONTINUOUS_MAINNET_BLOCKS
-        .iter()
-        .map(|(_height, block_bytes)| block_bytes.zcash_deserialize_into().unwrap())
+        .values()
+        .map(|block_bytes| block_bytes.zcash_deserialize_into().unwrap())
         .collect();
 
     // Get the height of the block at the tip using hardcoded block tip bytes.
@@ -1842,8 +1842,8 @@ async fn rpc_getblockhash() {
 
     // Create a continuous chain of mainnet blocks from genesis
     let blocks: Vec<Arc<Block>> = zebra_test::vectors::CONTINUOUS_MAINNET_BLOCKS
-        .iter()
-        .map(|(_height, block_bytes)| block_bytes.zcash_deserialize_into().unwrap())
+        .values()
+        .map(|block_bytes| block_bytes.zcash_deserialize_into().unwrap())
         .collect();
 
     let mut mempool: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
@@ -1912,8 +1912,8 @@ async fn rpc_getmininginfo() {
 
     // Create a continuous chain of mainnet blocks from genesis
     let blocks: Vec<Arc<Block>> = zebra_test::vectors::CONTINUOUS_MAINNET_BLOCKS
-        .iter()
-        .map(|(_height, block_bytes)| block_bytes.zcash_deserialize_into().unwrap())
+        .values()
+        .map(|block_bytes| block_bytes.zcash_deserialize_into().unwrap())
         .collect();
 
     // Create a populated state service
@@ -1953,8 +1953,8 @@ async fn rpc_getnetworksolps() {
 
     // Create a continuous chain of mainnet blocks from genesis
     let blocks: Vec<Arc<Block>> = zebra_test::vectors::CONTINUOUS_MAINNET_BLOCKS
-        .iter()
-        .map(|(_height, block_bytes)| block_bytes.zcash_deserialize_into().unwrap())
+        .values()
+        .map(|block_bytes| block_bytes.zcash_deserialize_into().unwrap())
         .collect();
 
     // Create a populated state service
@@ -2345,8 +2345,8 @@ async fn rpc_submitblock_errors() {
 
     // Create a continuous chain of mainnet blocks from genesis
     let blocks: Vec<Arc<Block>> = zebra_test::vectors::CONTINUOUS_MAINNET_BLOCKS
-        .iter()
-        .map(|(_height, block_bytes)| block_bytes.zcash_deserialize_into().unwrap())
+        .values()
+        .map(|block_bytes| block_bytes.zcash_deserialize_into().unwrap())
         .collect();
 
     let mut mempool: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
