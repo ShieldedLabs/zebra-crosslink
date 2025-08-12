@@ -22,7 +22,7 @@ members = [
         "zebra-utils",
         "zebra-crosslink",
         "tower-batch-control",
-        "tower-fallback", "zebra-crosslink",
+        "tower-fallback", "zebra-crosslink"
 ]
 
 # Use the edition 2021 dependency resolver in the workspace, to match the crates
