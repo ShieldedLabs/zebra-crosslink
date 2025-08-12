@@ -82,22 +82,12 @@ use zebra_chain::{
         equihash::Solution,
     },
 };
-<<<<<<< HEAD
-use zebra_consensus::{
-    block_subsidy, funding_stream_address, funding_stream_values, miner_subsidy,
-    ParameterCheckpoint, RouterError,
-};
+use zebra_consensus::{funding_stream_address, ParameterCheckpoint, RouterError};
 use zebra_crosslink::{
     service::{TFLServiceRequest, TFLServiceResponse},
     TFLBlockFinality, TFLRoster, TFLStaker,
-=======
-use zebra_consensus::ParameterCheckpoint;
-use zebra_crosslink::{
-    service::{TFLServiceRequest, TFLServiceResponse},
-    TFLBlockFinality,
->>>>>>> 08b63c429 (fix: cargo fmt)
 };
-use zebra_network::address_book_peers::AddressBookPeers;
+use zebra_network::{address_book_peers::AddressBookPeers, PeerSocketAddr};
 use zebra_node_services::mempool;
 use zebra_state::{HashOrHeight, OutputLocation, ReadRequest, ReadResponse, TransactionLocation};
 
@@ -113,7 +103,7 @@ use crate::{
 
 pub(crate) mod hex_data;
 pub(crate) mod trees;
-pub(crate) mod types;
+pub mod types;
 
 use hex_data::HexData;
 use trees::{GetSubtreesByIndexResponse, GetTreestateResponse, SubtreeRpcData};
@@ -269,22 +259,6 @@ pub trait Rpc {
     #[method(name = "is_tfl_activated")]
     async fn is_tfl_activated(&self) -> Option<bool>;
 
-    /// Placeholder function for checking whether the TFL has been activated.
-    ///
-    /// zcashd reference: none
-    /// method: post
-    /// tags: tfl
-    ///
-    /// ## Example Usage
-    /// ```shell
-    /// curl -X POST -H "Content-Type: application/json" -d \
-    /// '{ "jsonrpc": "2.0", "method": "is_tfl_activated", "params": [], "id": 1 }' \
-    /// http://127.0.0.1:8232
-    /// ```
-    /// *(The `address:port` matches the value in `zebrad.toml > [rpc] > listen_addr`)*
-    #[method(name = "is_tfl_activated")]
-    async fn is_tfl_activated(&self) -> Option<bool>;
-
     /// Placeholder function for getting finalizer roster.
     ///
     /// zcashd reference: none
@@ -351,7 +325,7 @@ pub trait Rpc {
     /// ```
     /// *(The `address:port` matches the value in `zebrad.toml > [rpc] > listen_addr`)*
     #[method(name = "get_tfl_final_block_height_and_hash")]
-    async fn get_tfl_final_block_height_and_hash(&self) -> Option<GetBlockHeightAndHash>;
+    async fn get_tfl_final_block_height_and_hash(&self) -> Option<GetBestBlockHeightAndHash>;
 
     /// Placeholder function for polling finality status of a specific block.
     /// (Uses [`GetBlockHash`] as a wrapper around [`block::Hash`] so that hashes can be passed as
@@ -935,7 +909,7 @@ pub trait Rpc {
 
 /// RPC method implementations.
 #[derive(Clone)]
-pub struct RpcImpl<Mempool, TFLService, State, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
+pub struct RpcImpl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
 where
     Mempool: Service<
             mempool::Request,
@@ -1032,8 +1006,8 @@ where
 /// A type alias for the last event logged by the server.
 pub type LoggedLastEvent = watch::Receiver<Option<(String, tracing::Level, chrono::DateTime<Utc>)>>;
 
-impl<Mempool, TFLService, State, Tip, AddressBook, BlockVerifierRouter, SyncStatus> fmt::Debug
-    for RpcImpl<Mempool, TFLService, State, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
+impl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus> fmt::Debug
+    for RpcImpl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
 where
     Mempool: Service<
             mempool::Request,
@@ -1093,13 +1067,8 @@ where
     }
 }
 
-<<<<<<< HEAD
-impl<Mempool, TFLService, State, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
-    RpcImpl<Mempool, TFLService, State, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
-=======
-impl<Mempool, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
-    RpcImpl<Mempool, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
->>>>>>> 744a3db92 (feat(rpc): Add `invalidateblock` and `reconsiderblock` RPC methods (#9551))
+impl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
+    RpcImpl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
 where
     Mempool: Service<
             mempool::Request,
@@ -1224,13 +1193,8 @@ where
 }
 
 #[async_trait]
-<<<<<<< HEAD
-impl<Mempool, TFLService, State, Tip, AddressBook, BlockVerifierRouter, SyncStatus> RpcServer
-    for RpcImpl<Mempool, TFLService, State, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
-=======
-impl<Mempool, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus> RpcServer
-    for RpcImpl<Mempool, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
->>>>>>> 744a3db92 (feat(rpc): Add `invalidateblock` and `reconsiderblock` RPC methods (#9551))
+impl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus> RpcServer
+    for RpcImpl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
 where
     Mempool: Service<
             mempool::Request,
@@ -1834,9 +1798,7 @@ where
         }
     }
 
-    async fn get_tfl_final_block_height_and_hash(&self) -> Option<GetBlockHeightAndHash> {
-        use zebra_state::{ReadRequest, ReadResponse};
-
+    async fn get_tfl_final_block_height_and_hash(&self) -> Option<GetBestBlockHeightAndHash> {
         let res = self
             .tfl_service
             .clone()
@@ -1848,7 +1810,7 @@ where
 
         if let Ok(TFLServiceResponse::FinalBlockHash(hash)) = res {
             if let Some(hash) = hash {
-                let final_block_hdr_req = ReadRequest::BlockHeader(HashOrHeight::Hash(hash));
+                let final_block_hdr_req = zebra_state::Request::BlockHeader(HashOrHeight::Hash(hash));
                 let final_block_hdr = self
                     .state
                     .clone()
@@ -1856,8 +1818,8 @@ where
                     .await
                     .map_misc_error();
 
-                if let Ok(ReadResponse::BlockHeader { height, .. }) = final_block_hdr {
-                    Some(GetBlockHeightAndHash { height, hash })
+                if let Ok(zebra_state::Response::BlockHeader { height, .. }) = final_block_hdr {
+                    Some(GetBestBlockHeightAndHash { height, hash })
                 } else {
                     None
                 }
@@ -2061,7 +2023,7 @@ where
                 let rx_res = rx.recv().await;
                 if let Ok(block_hash) = rx_res {
                     let txs_res = self
-                        .state
+                        .read_state
                         .clone()
                         .oneshot(zebra_state::ReadRequest::TransactionIdsForBlock(
                             block_hash.into(),
@@ -4456,20 +4418,6 @@ impl Default for BlockHeaderObject {
 #[serde(transparent)]
 pub struct GetBlockHashResponse(#[serde(with = "hex")] pub(crate) block::Hash);
 
-<<<<<<< HEAD
-/// Hex-encoded hash of a specific transaction.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(transparent)]
-pub struct GetTxHash(#[serde(with = "hex")] pub transaction::Hash);
-
-/// Response to a `getbestblockheightandhash` RPC request.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct GetBlockHeightAndHash {
-    /// The best chain tip block height
-    pub height: block::Height,
-    /// The best chain tip block hash
-    pub hash: block::Hash,
-=======
 impl GetBlockHashResponse {
     /// Constructs a new [`GetBlockHashResponse`] from a block hash.
     pub fn new(hash: block::Hash) -> Self {
@@ -4480,8 +4428,12 @@ impl GetBlockHashResponse {
     pub fn hash(&self) -> block::Hash {
         self.0
     }
->>>>>>> 63523aabb (rpc: API cleanup (#9568))
 }
+
+/// Hex-encoded hash of a specific transaction.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(transparent)]
+pub struct GetTxHash(#[serde(with = "hex")] pub transaction::Hash);
 
 #[deprecated(note = "Use `GetBlockHashResponse` instead")]
 pub use self::GetBlockHashResponse as GetBlockHash;
