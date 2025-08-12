@@ -340,17 +340,10 @@ pub struct VizState {
 //                             0
 //                         };
 
-<<<<<<< HEAD
 //                         bft_blocks.push(node.header.as_bft().unwrap().clone());
 //                     }
 //                 }
 //             }
-=======
-                        bft_blocks.push((parent_id, node.header.as_bft().unwrap().clone()));
-                    }
-                }
-            }
->>>>>>> 3777c20ba (extensions... and fmt)
 
 //             Self {
 //                 latest_final_block: state.latest_final_block.map(|(h, hash)| (h.0, hash.0)),
@@ -838,15 +831,9 @@ struct Node {
 
 fn tfl_nominee_from_node(ctx: &VizCtx, node: &Node) -> NodeRef {
     match &node.header {
-<<<<<<< HEAD
         VizHeader::BftBlock(bft_block) => {
             if let Some(pow_block) = bft_block.block.headers.last() {
                 ctx.find_bc_node_by_hash(&pow_block.hash())
-=======
-        VizHeader::BftPayload(payload) => {
-            if let Some(block) = payload.headers.last() {
-                ctx.find_bc_node_by_hash(&block.hash())
->>>>>>> 3777c20ba (extensions... and fmt)
             } else {
                 None
             }
@@ -1010,7 +997,6 @@ struct Accel {
 const ACCEL_GRP_SIZE: f32 = 1620.;
 // const ACCEL_GRP_SIZE : f32 = 220.;
 
-<<<<<<< HEAD
 struct VizConfig {
     test_bbox: bool,
     show_accel_areas: bool,
@@ -1031,8 +1017,6 @@ struct VizConfig {
     do_force_edge: bool,
 }
 
-=======
->>>>>>> 3777c20ba (extensions... and fmt)
 /// Common GUI state that may need to be passed around
 #[derive(Debug)]
 pub(crate) struct VizCtx {
@@ -1288,26 +1272,11 @@ impl VizCtx {
                     }
 
                     self.missing_bc_parents.remove(&node_hash);
-<<<<<<< HEAD
-=======
-                    new_node.pt =
-                        self.nodes[child].pt + vec2(0., self.nodes[child].rad + new_node.rad + 30.); // TODO: handle positioning when both parent & child are set
-
-                    assert!(self.nodes[child].parent.is_none());
-                    assert!(
-                        self.nodes[child].height == new_node.height + 1,
-                        "child height: {}, new height: {}",
-                        self.nodes[child].height,
-                        new_node.height
-                    );
-                    self.nodes[child].parent = node_ref;
->>>>>>> 3777c20ba (extensions... and fmt)
                 }
             }
         }
 
         if needs_fixup {
-<<<<<<< HEAD
             if let Some(parent) = self.get_node(new_node.parent) {
                 new_node.pt = parent.pt;
                 // new_node.vel = self.nodes[parent].vel;
@@ -1351,11 +1320,6 @@ impl VizCtx {
                 if new_node.pt.y > parent.pt.y {
                     // warn!("points have been spawned inverted");
                 }
-=======
-            if let Some(parent) = new_node.parent {
-                new_node.pt =
-                    self.nodes[parent].pt - vec2(0., self.nodes[parent].rad + new_node.rad + 30.);
->>>>>>> 3777c20ba (extensions... and fmt)
             }
         }
 
@@ -1368,24 +1332,16 @@ impl VizCtx {
                     self.bc_work_max = std::cmp::max(self.bc_work_max, work.as_u128());
                 }
 
-<<<<<<< HEAD
                 if self
                     .get_node(self.bc_lo)
                     .map_or(true, |node| new_node.height < node.height)
-=======
-                if self.bc_lo.is_none() || new_node.height < self.nodes[self.bc_lo.unwrap()].height
->>>>>>> 3777c20ba (extensions... and fmt)
                 {
                     self.bc_lo = node_ref;
                 }
 
-<<<<<<< HEAD
                 if self
                     .get_node(self.bc_hi)
                     .map_or(true, |node| new_node.height < node.height)
-=======
-                if self.bc_hi.is_none() || new_node.height > self.nodes[self.bc_hi.unwrap()].height
->>>>>>> 3777c20ba (extensions... and fmt)
                 {
                     self.bc_hi = node_ref;
                 }
@@ -1463,11 +1419,6 @@ impl VizCtx {
         // find group
         let old_y = (old_pos.y * (1. / ACCEL_GRP_SIZE)).ceil() as i64;
         let new_y = (new_pos.y * (1. / ACCEL_GRP_SIZE)).ceil() as i64;
-<<<<<<< HEAD
-=======
-
-        let node_ref = Some(node_i);
->>>>>>> 3777c20ba (extensions... and fmt)
 
         // remove from old location
         if old_y != new_y {
@@ -2255,12 +2206,7 @@ pub async fn viz_main(
                 .screen_to_world(vec2(window::screen_width(), window::screen_height())),
         };
 
-<<<<<<< HEAD
         let world_bbox = if config.test_bbox {
-=======
-        const TEST_BBOX: bool = false; // TODO: add to a DEBUG menu
-        let world_bbox = if TEST_BBOX {
->>>>>>> 3777c20ba (extensions... and fmt)
             // test bounding box functionality by shrinking it on screen
             let t = 0.25;
             BBox {
@@ -2396,7 +2342,6 @@ pub async fn viz_main(
                             ctx.bft_fake_id + 1
                         };
 
-<<<<<<< HEAD
                         let bft_block = BftBlock {
                             version: 0,
                             height: 0,
@@ -2417,38 +2362,10 @@ pub async fn viz_main(
                                     break Vec::new();
                                 };
 
-<<<<<<< HEAD
                                 break match node.header {
                                     VizHeader::BlockHeader(hdr) => vec![hdr],
                                     _ => Vec::new(),
                                 };
-=======
-                                    let node_i = find_bc_node_i_by_height(
-                                        &ctx.nodes,
-                                        BlockHeight(bc.unwrap()),
-                                    );
-                                    if node_i.is_none() {
-=======
-                        let payload = VizBftPayload {
-                            min_payload_h: BlockHeight(0),
-                            payload: BftPayload {
-                                version: 0,
-                                height: 0,
-                                previous_block_hash: zebra_chain::block::Hash([0u8; 32]),
-                                headers: loop {
-                                    let bc: Option<u32> = target_bc_str.trim().parse().ok();
-                                    if bc.is_none() {
->>>>>>> b364bd94e (Add fields for version number, height and previous block hash.)
-                                        break Vec::new();
-                                    }
-
-                                    let node = &ctx.nodes[node_i.unwrap()];
-                                    break match node.header {
-                                        VizHeader::BlockHeader(hdr) => vec![hdr],
-                                        _ => Vec::new(),
-                                    };
-                                },
->>>>>>> 3777c20ba (extensions... and fmt)
                             },
                         };
 
@@ -2692,31 +2609,16 @@ pub async fn viz_main(
                             solution: zebra_chain::work::equihash::Solution::for_proposal(),
                         };
                         let id = NodeId::Hash(header.hash().0);
-<<<<<<< HEAD
                         (VizHeader::BlockHeader(header), id, None)
-=======
-                        (VizHeader::BlockHeader(header), id)
->>>>>>> 3777c20ba (extensions... and fmt)
                     }
 
                     NodeKind::BFT => {
-<<<<<<< HEAD
                         let bft_block = BftBlock {
                             version: 0,
                             height: 0,
                             previous_block_fat_ptr: FatPointerToBftBlock::null(),
                             finalization_candidate_height: 0,
                             headers: Vec::new(),
-=======
-                        let header = VizBftPayload {
-                            min_payload_h: BlockHeight(0),
-                            payload: BftPayload {
-                                version: 0,
-                                height: 0,
-                                previous_block_hash: zebra_chain::block::Hash([0u8; 32]),
-                                headers: Vec::new(),
-                            },
->>>>>>> b364bd94e (Add fields for version number, height and previous block hash.)
                         };
 
                         let id = NodeId::Hash(bft_block.blake3_hash().0);
@@ -2774,11 +2676,7 @@ pub async fn viz_main(
 
         let min_grp = (world_bbox.min.y * (1. / ACCEL_GRP_SIZE)).ceil() as i64 - 1;
         let max_grp = (world_bbox.max.y * (1. / ACCEL_GRP_SIZE)).ceil() as i64 + 1;
-<<<<<<< HEAD
         let mut on_screen_node_refs: Vec<NodeRef> = Vec::with_capacity(ctx.nodes.len());
-=======
-        let mut on_screen_node_idxs: Vec<usize> = Vec::with_capacity(ctx.nodes.len());
->>>>>>> 3777c20ba (extensions... and fmt)
         for grp in min_grp..=max_grp {
             if let Some(accel) = ctx.accel.y_to_nodes.get(&grp) {
                 for node_ref in &accel.nodes {
@@ -3044,15 +2942,8 @@ pub async fn viz_main(
                 }
 
                 match spring_method {
-<<<<<<< HEAD
                     SpringMethod::Old => node.acc = -0.5 * spring_stiffness * node.vel, // TODO: or slight drag?
                     _ => node.acc = Vec2::_0,
-=======
-                    SpringMethod::Old => {
-                        ctx.nodes[node_i].acc = -0.5 * spring_stiffness * ctx.nodes[node_i].vel
-                    } // TODO: or slight drag?
-                    _ => ctx.nodes[node_i].acc = Vec2::_0,
->>>>>>> 3777c20ba (extensions... and fmt)
                 }
             }
         }

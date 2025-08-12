@@ -1,16 +1,15 @@
 [package]
 name = "zebra-crosslink"
-version = "1.0.0-beta.45"
+version = "1.0.0-beta.46"
 edition = "2021"
 
 [dependencies]
 zebra-chain = { path = "../zebra-chain", version = "1.0.0-beta.45" }
-zebra-crosslink-chain = { path = "../zebra-crosslink-chain" }
 zebra-state = { path = "../zebra-state", version = "1.0.0-beta.45" }
 
 serde = { workspace = true, features = ["serde_derive"] }
 toml = { workspace = true }
-
+chrono = { workspace = true }
 futures = { workspace = true }
 rayon = { workspace = true }
 tokio = { workspace = true, features = ["time", "rt-multi-thread", "macros", "tracing", "signal"] }
@@ -40,36 +39,86 @@ libp2p-identity = "0.2"
 multiaddr = "0.18.2"
 rand = "0.8"
 serde_json = "1.0"
-sha3 = "0.10"
-tempdir = "0.3.7"
+tempfile = "3.19.1"
+prost = "0.13"
+strum = "0.26.3"
+strum_macros = "0.26.4"
+zerocopy = "0.8.25"
+zerocopy-derive = "0.8.25"
+blake3 = "1.8.2"
+byteorder = { workspace = true }
+ed25519-zebra = { workspace = true }
 
-# TODO: "viz" feature with optional crates
-macroquad = "0.4.14"
-# TODO: macroquad-profiler
+static_assertions = { workspace = true }
+
+macroquad = { version = "0.4.14", optional = true }
+macroquad-profiler = { version = "0.2.0", optional = true }
+# macroquad transitive dependencies:
+image = { version = "0.24", default-features = false, features = ["png", "tga"], optional = true }
+miniquad = { version = "0.4.8", optional = true }
+hex                = { version = "0.4.3", features = ["serde"] }
+
+[dev-dependencies]
+zebra-test = { path = "../zebra-test", version = "1.0.0-beta.45" }
+
+[features]
+default = []
+viz_gui = ["macroquad", "macroquad-profiler", "image", "miniquad"]
+audio   = ["macroquad/audio"]
 
 [dependencies.malachitebft-app-channel]
-version = "0.0.1"
+version = "0.2.0"
 # This adds the `informalsystems-malachitebft-app-channel` as a dependency, but exposes it
 # under `malachitebft_app_channel` instead of its full package name.
-git = "https://git@github.com/informalsystems/malachite.git"
+git = "https://github.com/ShieldedLabs/malachite.git"
+rev = "4c2a9560ceb75868af23de388991a1eafc42ec9b"
 package = "informalsystems-malachitebft-app-channel"
 
 [dependencies.malachitebft-config]
-version = "0.0.1"
-git = "https://git@github.com/informalsystems/malachite.git"
+version = "0.2.0"
+git = "https://github.com/ShieldedLabs/malachite.git"
+rev = "4c2a9560ceb75868af23de388991a1eafc42ec9b"
 package = "informalsystems-malachitebft-config"
 
-[dependencies.malachitebft-test]
-version = "0.0.1"
-git = "https://git@github.com/informalsystems/malachite.git"
-package = "informalsystems-malachitebft-test"
-
-[dependencies.malachitebft-test-cli]
-version = "0.0.1"
-git = "https://git@github.com/informalsystems/malachite.git"
-package = "informalsystems-malachitebft-test-cli"
-
 [dependencies.malachitebft-proto]
-version = "0.0.1"
-git = "https://git@github.com/informalsystems/malachite.git"
+version = "0.2.0"
+git = "https://github.com/ShieldedLabs/malachite.git"
+rev = "4c2a9560ceb75868af23de388991a1eafc42ec9b"
 package = "informalsystems-malachitebft-proto"
+
+[dependencies.malachitebft-core-types]
+version = "0.2.0"
+git = "https://github.com/ShieldedLabs/malachite.git"
+rev = "4c2a9560ceb75868af23de388991a1eafc42ec9b"
+package = "informalsystems-malachitebft-core-types"
+
+[dependencies.malachitebft-app]
+version = "0.2.0"
+git = "https://github.com/ShieldedLabs/malachite.git"
+rev = "4c2a9560ceb75868af23de388991a1eafc42ec9b"
+package = "informalsystems-malachitebft-app"
+
+[dependencies.malachitebft-codec]
+version = "0.2.0"
+git = "https://github.com/ShieldedLabs/malachite.git"
+rev = "4c2a9560ceb75868af23de388991a1eafc42ec9b"
+package = "informalsystems-malachitebft-codec"
+
+[dependencies.malachitebft-core-consensus]
+version = "0.2.0"
+git = "https://github.com/ShieldedLabs/malachite.git"
+rev = "4c2a9560ceb75868af23de388991a1eafc42ec9b"
+package = "informalsystems-malachitebft-core-consensus"
+
+[dependencies.malachitebft-sync]
+version = "0.2.0"
+git = "https://github.com/ShieldedLabs/malachite.git"
+rev = "4c2a9560ceb75868af23de388991a1eafc42ec9b"
+package = "informalsystems-malachitebft-sync"
+
+[[bin]]
+name = "viz_test_driver"
+path = "tests/bin/viz_test_driver.rs"
+
+[build-dependencies]
+prost-build = "0.13"

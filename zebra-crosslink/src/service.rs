@@ -16,7 +16,6 @@ use tracing::{error, info, warn};
 
 use zebra_chain::block::{Hash as BlockHash, Height as BlockHeight};
 use zebra_chain::transaction::Hash as TxHash;
-use zebra_crosslink_chain::params::ZcashCrosslinkParameters;
 use zebra_state::{ReadRequest as ReadStateRequest, ReadResponse as ReadStateResponse};
 
 use crate::chain::BftBlock;
@@ -159,7 +158,7 @@ impl fmt::Debug for TFLServiceCalls {
 /// - `read_state_service_call` takes a [`ReadStateRequest`] as input and returns a [`ReadStateResponse`] as output.
 ///
 /// [`TFLServiceHandle`] is a shallow handle that can be cloned and passed between threads.
-pub fn spawn_new_tfl_service<ZCP: ZcashCrosslinkParameters>(
+pub fn spawn_new_tfl_service(
     read_state_service_call: ReadStateServiceProcedure,
     force_feed_pow_call: ForceFeedPoWBlockProcedure,
     config: crate::config::Config,
@@ -208,7 +207,7 @@ pub fn spawn_new_tfl_service<ZCP: ZcashCrosslinkParameters>(
 
     (
         handle1,
-        tokio::spawn(async move { crate::tfl_service_main_loop::<ZCP>(handle2).await }),
+        tokio::spawn(async move { crate::tfl_service_main_loop(handle2).await }),
     )
 }
 
