@@ -587,14 +587,10 @@ async fn test_mocked_rpc_response_data_for_network(network: &Network) {
     settings.set_snapshot_suffix(network_string(network));
 
     let (latest_chain_tip, _) = MockChainTip::new();
-<<<<<<< HEAD
     let mut state = MockService::build().for_unit_tests();
     let mempool = MockService::build().for_unit_tests();
     let tfl_service = MockService::build().for_unit_tests();
-=======
-    let state = MockService::build().for_unit_tests();
     let mut read_state = MockService::build().for_unit_tests();
->>>>>>> 744a3db92 (feat(rpc): Add `invalidateblock` and `reconsiderblock` RPC methods (#9551))
 
     let (_tx, rx) = tokio::sync::watch::channel(None);
     let (rpc, _) = RpcImpl::new(
@@ -1027,11 +1023,8 @@ pub async fn test_mining_rpcs<State, ReadState>(
         "0.0.1",
         "RPC test",
         Buffer::new(mempool.clone(), 1),
-<<<<<<< HEAD
         mock_tfl_service,
-=======
         state,
->>>>>>> 744a3db92 (feat(rpc): Add `invalidateblock` and `reconsiderblock` RPC methods (#9551))
         read_state,
         block_verifier_router.clone(),
         mock_sync_status.clone(),
@@ -1171,11 +1164,8 @@ pub async fn test_mining_rpcs<State, ReadState>(
         "0.0.1",
         "RPC test",
         Buffer::new(mempool.clone(), 1),
-<<<<<<< HEAD
         mock_tfl_service,
-=======
         state.clone(),
->>>>>>> 744a3db92 (feat(rpc): Add `invalidateblock` and `reconsiderblock` RPC methods (#9551))
         read_state.clone(),
         block_verifier_router,
         mock_sync_status.clone(),
@@ -1293,11 +1283,8 @@ pub async fn test_mining_rpcs<State, ReadState>(
         "0.0.1",
         "RPC test",
         Buffer::new(mempool, 1),
-<<<<<<< HEAD
         mock_tfl_service,
-=======
         state.clone(),
->>>>>>> 744a3db92 (feat(rpc): Add `invalidateblock` and `reconsiderblock` RPC methods (#9551))
         read_state.clone(),
         mock_block_verifier_router.clone(),
         mock_sync_status,

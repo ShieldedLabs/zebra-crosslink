@@ -40,13 +40,10 @@ async fn rpc_server_spawn() {
     };
 
     let mut mempool: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
-<<<<<<< HEAD
     let mut state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
     let crosslink: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
-=======
     let state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
     let mut read_state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
->>>>>>> 744a3db92 (feat(rpc): Add `invalidateblock` and `reconsiderblock` RPC methods (#9551))
     let mut block_verifier_router: MockService<_, _, _, BoxError> =
         MockService::build().for_unit_tests();
 
@@ -115,11 +112,8 @@ async fn rpc_spawn_unallocated_port(do_shutdown: bool) {
 
     let mut mempool: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
     let mut state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
-<<<<<<< HEAD
     let crosslink: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
-=======
     let mut read_state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
->>>>>>> 744a3db92 (feat(rpc): Add `invalidateblock` and `reconsiderblock` RPC methods (#9551))
     let mut block_verifier_router: MockService<_, _, _, BoxError> =
         MockService::build().for_unit_tests();
 
@@ -178,11 +172,8 @@ async fn rpc_server_spawn_port_conflict() {
 
     let mut mempool: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
     let mut state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
-<<<<<<< HEAD
     let crosslink: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
-=======
     let mut read_state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
->>>>>>> 744a3db92 (feat(rpc): Add `invalidateblock` and `reconsiderblock` RPC methods (#9551))
     let mut block_verifier_router: MockService<_, _, _, BoxError> =
         MockService::build().for_unit_tests();
 
