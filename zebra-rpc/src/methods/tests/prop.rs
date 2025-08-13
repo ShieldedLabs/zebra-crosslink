@@ -1011,5 +1011,5 @@ where
         None,
     );
 
-    (mempool, crosslink, state, rpc, mempool_tx_queue)
+    (mempool, crosslink, read_state, rpc, mempool_tx_queue)
 }

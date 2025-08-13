@@ -15,6 +15,8 @@ use zebra_network::address_book_peers::MockAddressBookPeers;
 use zebra_node_services::BoxError;
 use zebra_test::mock_service::MockService;
 
+use zebra_state::{Request, Response};
+
 use super::super::*;
 
 use config::rpc::Config;
@@ -40,7 +42,7 @@ async fn rpc_server_spawn() {
     };
 
     let mut mempool: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
-    let mut state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
+    let mut state: MockService<Request, Response, _, BoxError> = MockService::build().for_unit_tests();
     let crosslink: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
     let state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
     let mut read_state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();

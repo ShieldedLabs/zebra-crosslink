@@ -773,7 +773,7 @@ async fn rpc_getblock_missing_error() {
     let _init_guard = zebra_test::init();
 
     let mut mempool: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
-    let mut state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
+    let mut state: MockService<zebra_state::Request, zebra_state::Response, _, BoxError> = MockService::build().for_unit_tests();
     let tfl_service: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
     let state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
     let mut read_state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
@@ -2365,6 +2365,7 @@ async fn rpc_validateaddress() {
         MockService::build().for_unit_tests(),
         MockService::build().for_unit_tests(),
         MockService::build().for_unit_tests(),
+        MockService::build().for_unit_tests(),
         MockSyncStatus::default(),
         NoChainTip,
         MockAddressBookPeers::default(),
@@ -2448,6 +2449,7 @@ async fn rpc_validateaddress_regtest() {
         MockService::build().for_unit_tests(),
         MockService::build().for_unit_tests(),
         MockService::build().for_unit_tests(),
+        MockService::build().for_unit_tests(),
         MockSyncStatus::default(),
         NoChainTip,
         MockAddressBookPeers::default(),
@@ -2503,6 +2505,7 @@ async fn rpc_z_validateaddress() {
         Default::default(),
         "0.0.1",
         "RPC test",
+        MockService::build().for_unit_tests(),
         MockService::build().for_unit_tests(),
         MockService::build().for_unit_tests(),
         MockService::build().for_unit_tests(),
@@ -2641,6 +2644,7 @@ async fn rpc_getdifficulty() {
         MockService::build().for_unit_tests(),
         MockService::build().for_unit_tests(),
         Buffer::new(read_state.clone(), 1),
+        MockService::build().for_unit_tests(),
         MockService::build().for_unit_tests(),
         mock_sync_status,
         mock_tip,
