@@ -101,7 +101,16 @@ impl RpcServer {
         SyncStatus,
         AddressBook,
     >(
-        rpc: RpcImpl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>,
+        rpc: RpcImpl<
+            Mempool,
+            TFLService,
+            State,
+            ReadState,
+            Tip,
+            AddressBook,
+            BlockVerifierRouter,
+            SyncStatus,
+        >,
         conf: config::rpc::Config,
     ) -> Result<ServerTask, tower::BoxError>
     where

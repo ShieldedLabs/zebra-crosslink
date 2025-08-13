@@ -909,8 +909,16 @@ pub trait Rpc {
 
 /// RPC method implementations.
 #[derive(Clone)]
-pub struct RpcImpl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
-where
+pub struct RpcImpl<
+    Mempool,
+    TFLService,
+    State,
+    ReadState,
+    Tip,
+    AddressBook,
+    BlockVerifierRouter,
+    SyncStatus,
+> where
     Mempool: Service<
             mempool::Request,
             Response = mempool::Response,
@@ -1006,8 +1014,18 @@ where
 /// A type alias for the last event logged by the server.
 pub type LoggedLastEvent = watch::Receiver<Option<(String, tracing::Level, chrono::DateTime<Utc>)>>;
 
-impl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus> fmt::Debug
-    for RpcImpl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
+impl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
+    fmt::Debug
+    for RpcImpl<
+        Mempool,
+        TFLService,
+        State,
+        ReadState,
+        Tip,
+        AddressBook,
+        BlockVerifierRouter,
+        SyncStatus,
+    >
 where
     Mempool: Service<
             mempool::Request,
@@ -1068,7 +1086,16 @@ where
 }
 
 impl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
-    RpcImpl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
+    RpcImpl<
+        Mempool,
+        TFLService,
+        State,
+        ReadState,
+        Tip,
+        AddressBook,
+        BlockVerifierRouter,
+        SyncStatus,
+    >
 where
     Mempool: Service<
             mempool::Request,
@@ -1193,8 +1220,18 @@ where
 }
 
 #[async_trait]
-impl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus> RpcServer
-    for RpcImpl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
+impl<Mempool, TFLService, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>
+    RpcServer
+    for RpcImpl<
+        Mempool,
+        TFLService,
+        State,
+        ReadState,
+        Tip,
+        AddressBook,
+        BlockVerifierRouter,
+        SyncStatus,
+    >
 where
     Mempool: Service<
             mempool::Request,
@@ -1810,7 +1847,8 @@ where
 
         if let Ok(TFLServiceResponse::FinalBlockHash(hash)) = res {
             if let Some(hash) = hash {
-                let final_block_hdr_req = zebra_state::Request::BlockHeader(HashOrHeight::Hash(hash));
+                let final_block_hdr_req =
+                    zebra_state::Request::BlockHeader(HashOrHeight::Hash(hash));
                 let final_block_hdr = self
                     .state
                     .clone()

@@ -773,7 +773,8 @@ async fn rpc_getblock_missing_error() {
     let _init_guard = zebra_test::init();
 
     let mut mempool: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
-    let mut state: MockService<zebra_state::Request, zebra_state::Response, _, BoxError> = MockService::build().for_unit_tests();
+    let mut state: MockService<zebra_state::Request, zebra_state::Response, _, BoxError> =
+        MockService::build().for_unit_tests();
     let tfl_service: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
     let state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
     let mut read_state: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
@@ -2643,8 +2644,8 @@ async fn rpc_getdifficulty() {
         "RPC test",
         MockService::build().for_unit_tests(),
         MockService::build().for_unit_tests(),
-        Buffer::new(read_state.clone(), 1),
         MockService::build().for_unit_tests(),
+        Buffer::new(read_state.clone(), 1),
         MockService::build().for_unit_tests(),
         mock_sync_status,
         mock_tip,
@@ -2766,6 +2767,7 @@ async fn rpc_z_listunifiedreceivers() {
         MockService::build().for_unit_tests(),
         MockService::build().for_unit_tests(),
         MockService::build().for_unit_tests(),
+        MockService::build().for_unit_tests(),
         MockSyncStatus::default(),
         NoChainTip,
         MockAddressBookPeers::default(),
@@ -2833,6 +2835,7 @@ async fn rpc_addnode() {
 
     // Init RPC
     let (_tx, rx) = tokio::sync::watch::channel(None);
+    let tfl_service: MockService<_, _, _, BoxError> = MockService::build().for_unit_tests();
     let (rpc, _) = RpcImpl::new(
         network,
         Default::default(),
@@ -2840,6 +2843,7 @@ async fn rpc_addnode() {
         "0.0.1",
         "RPC test",
         Buffer::new(mempool.clone(), 1),
+        Buffer::new(tfl_service.clone(), 1),
         Buffer::new(state.clone(), 1),
         Buffer::new(read_state.clone(), 1),
         block_verifier_router,
