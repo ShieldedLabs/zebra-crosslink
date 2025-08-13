@@ -777,7 +777,7 @@ impl FatPointerToBftBlock {
             return None;
         }
         let vote_for_block_without_finalizer_public_key = bytes[0..76 - 32].try_into().unwrap();
-        let len = u16::from_le_bytes(bytes[76 - 32..2].try_into().unwrap()) as usize;
+        let len = u16::from_le_bytes(bytes[2..76 - 32].try_into().unwrap()) as usize;
 
         if 76 - 32 + 2 + len * (32 + 64) > bytes.len() {
             return None;
