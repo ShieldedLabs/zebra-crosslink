@@ -76,7 +76,14 @@
         enableTrace = false;
         traceJson = if enableTrace then (lib.debug.traceValFn builtins.toJSON) else (x: x);
 
-        craneLib = crane.mkLib pkgs;
+        # Note: Yes, it's really this terrible. You would think nix would "just build" rust, but no...
+        craneLib =
+          let
+            fenixlib = fenix.packages."${system}";
+            rustToolchain = fenixlib.fromToolchainFile { file = ./rust-toolchain.toml; };
+            intermediateCraneLib = crane.mkLib pkgs;
+          in
+          intermediateCraneLib.overrideToolchain rustToolchain;
 
         # We use the latest nixpkgs `libclang`:
         inherit (pkgs.llvmPackages) libclang;
