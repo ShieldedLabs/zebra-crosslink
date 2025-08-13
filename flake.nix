@@ -80,7 +80,7 @@
         craneLib =
           let
             fenixlib = fenix.packages."${system}";
-            rustToolchain = fenixlib.fromToolchainFile { file = ./rust-toolchain.toml; };
+            rustToolchain = fenixlib.stable.toolchain;
             intermediateCraneLib = crane.mkLib pkgs;
           in
           intermediateCraneLib.overrideToolchain rustToolchain;
