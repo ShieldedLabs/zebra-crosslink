@@ -36,7 +36,7 @@ mod integration_tests {
                 bft_blocks: vec![(0, "A:0".into()), (0, "B:1".into()), (1, "C:".into())],
             });
 
-            zebra_crosslink::viz::serialization::write_to_file("viz_state.json", &state, false);
+            // zebra_crosslink::viz::serialization::write_to_file("viz_state.json", &state, false);
 
             eprintln!("🖼  Run `cargo run --bin viz_test_driver` to view visualization");
         }
