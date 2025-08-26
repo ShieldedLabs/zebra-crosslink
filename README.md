@@ -166,9 +166,9 @@ channel.
 
 ## Security
 
-Zebra has a [responsible disclosure
-policy](https://github.com/ZcashFoundation/zebra/blob/main/SECURITY.md), which
-we encourage security researchers to follow.
+Until we are ready with a production version of `zebra-crosslink`, we are not accepting security disclosures.
+If you find a security issue in upstream Zebra, please report follow the existing [responsible disclosure
+policy](https://github.com/ZcashFoundation/zebra/blob/main/SECURITY.md).
 
 ## License
 
