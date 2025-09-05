@@ -1496,7 +1496,7 @@ async fn getaddresstxids_single_equals_object_full_range() {
     let (_tx, rx) = tokio::sync::watch::channel(None);
 
     let (rpc, queue) = RpcImpl::new(
-        Mainnet,
+        network,
         Default::default(),
         Default::default(),
         "0.0.1",
@@ -1507,7 +1507,7 @@ async fn getaddresstxids_single_equals_object_full_range() {
         Buffer::new(read_state.clone(), 1),
         MockService::build().for_unit_tests(),
         MockSyncStatus::default(),
-        NoChainTip,
+        tip,
         MockAddressBookPeers::default(),
         rx,
         None,
