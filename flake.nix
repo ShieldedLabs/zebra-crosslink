@@ -93,11 +93,60 @@
         # We use the latest nixpkgs `libclang`:
         inherit (pkgs.llvmPackages) libclang;
 
-        src = lib.sources.cleanSource ./.;
+        src-book = ./book;
+        src-rust = (
+          # Only include cargo sources necessary for build or test:
+          let
+            # Exclude these and everything below them:
+            prune = [
+              "book"
+              "docker"
+              "docs"
+              "grafana"
+              "supply-chain"
+            ];
+
+            # Include all files in these directories, even if not "typical rust":
+            include = [
+              # These have things besides `*.toml` or `*.rs` we need:
+              "crosslink-test-data"
+              "zebra-chain"
+              "zebra-consensus"
+              "zebra-crosslink"
+              "zebra-rpc"
+              "zebra-test"
+              "zebrad"
+            ];
+          in
+          builtins.path {
+            name = "${pname}-src-rust";
+            path = ./.;
+            filter =
+              path: type:
+              (
+                let
+                  inherit (builtins) baseNameOf dirOf elem;
+                  inherit (craneLib) filterCargoSources;
+
+                  path-has-ancestor-in =
+                    path: names:
+                    if path == "/" then
+                      false
+                    else if elem (baseNameOf path) names then
+                      true
+                    else
+                      path-has-ancestor-in (dirOf path) names;
+
+                  has-ancestor-in = path-has-ancestor-in path;
+                in
+                !(has-ancestor-in prune) && (has-ancestor-in include || filterCargoSources path type)
+              );
+          }
+        );
 
         # Common arguments can be set here to avoid repeating them later
-        commonArgs = {
-          inherit src;
+        commonBuildCrateArgs = {
+          src = src-rust;
 
           strictDeps = true;
           # NB: we disable tests since we'll run them all via cargo-nextest
@@ -123,7 +172,7 @@
         # Build *just* the cargo dependencies (of the entire workspace),
         # so we can reuse all of that work (e.g. via cachix) when running in CI
         cargoArtifacts = craneLib.buildDepsOnly (
-          commonArgs
+          commonBuildCrateArgs
           // {
             pname = "${pname}-dependency-artifacts";
             version = "0.0.0";
@@ -133,7 +182,7 @@
         individualCrateArgs = (
           crate:
           let
-            result = commonArgs // {
+            result = commonBuildCrateArgs // {
               inherit cargoArtifacts;
               inherit
                 (traceJson (craneLib.crateNameFromCargoToml { cargoToml = traceJson (crate + "/Cargo.toml"); }))
@@ -162,23 +211,58 @@
 
         zebra-book = pkgs.stdenv.mkDerivation rec {
           name = "zebra-book";
-          src = ./.; # Note: The book refers to parent directories, so we need full source
+          src = src-book;
           buildInputs = with pkgs; [
             mdbook
             mdbook-mermaid
           ];
-          builder = pkgs.writeShellScript "${name}-builder.sh" ''mdbook build --dest-dir "$out/book/book" "$src/book"'';
+          builder = pkgs.writeShellScript "${name}-builder.sh" ''mdbook build --dest-dir "$out/book/book" "$src/"'';
         };
 
-        zebra-all-pkgs = pkgs.symlinkJoin {
-          name = "zebra-all-pkgs";
-          paths = [
-            zebrad
-            zebra-book
-          ];
-        };
+        storepath-to-derivation =
+          src:
+          let
+            inherit (builtins) head match;
+            inherit (lib.strings) isStorePath;
+
+            srcName = if isStorePath src then head (match "^[^-]+-(.*)$" src) else baseNameOf src;
+          in
+
+          pkgs.stdenv.mkDerivation rec {
+            inherit src;
+
+            name = "ln-to-${srcName}";
+
+            builder = pkgs.writeScript "script-to-${name}" ''
+              outsrc="$out/src"
+              mkdir -p "$outsrc"
+              ln -sv "$src" "$outsrc/${srcName}"
+            '';
+
+          };
       in
       {
+        packages = (
+          let
+            base-pkgs = { inherit zebrad zebra-book; };
+
+            src-pkgs = builtins.mapAttrs (_name: storepath-to-derivation) { inherit src-rust src-book; };
+
+            all-pkgs-except-all = base-pkgs // src-pkgs;
+
+            all = pkgs.symlinkJoin {
+              name = "${pname}-all";
+              paths = builtins.attrValues all-pkgs-except-all;
+            };
+          in
+
+          all-pkgs-except-all
+          // {
+            inherit all;
+            default = all;
+          }
+        );
+
         checks = {
           # Build the crates as part of `nix flake check` for convenience
           inherit zebrad;
@@ -190,7 +274,7 @@
           # we can block the CI if there are issues here, but not
           # prevent downstream consumers from building our crate by itself.
 
-          # my-workspace-clippy = craneLib.cargoClippy (commonArgs // {
+          # my-workspace-clippy = craneLib.cargoClippy (commonBuildCrateArgs // {
           #   inherit (zebrad) pname version;
           #   inherit cargoArtifacts;
 
@@ -198,7 +282,7 @@
           # });
 
           my-workspace-doc = craneLib.cargoDoc (
-            commonArgs
+            commonBuildCrateArgs
             // {
               inherit (zebrad) pname version;
               inherit cargoArtifacts;
@@ -209,7 +293,7 @@
           nixfmt-check = pkgs.runCommand "${pname}-nixfmt" { buildInputs = [ nixfmt ]; } ''
             set -efuo pipefail
             exitcode=0
-            for f in $(find '${src}' -type f -name '*.nix')
+            for f in $(find '${./.}' -type f -name '*.nix')
             do
               cmd="nixfmt --check --strict \"$f\""
               echo "+ $cmd"
@@ -254,7 +338,7 @@
           # Consider setting `doCheck = false` on other crate derivations
           # if you do not want the tests to run twice
           my-workspace-nextest = craneLib.cargoNextest (
-            commonArgs
+            commonBuildCrateArgs
             // {
               inherit (zebrad) pname version;
               inherit cargoArtifacts;
@@ -263,12 +347,6 @@
               partitionType = "count";
             }
           );
-        };
-
-        packages = {
-          inherit zebrad zebra-book;
-
-          default = zebra-all-pkgs;
         };
 
         apps = {
@@ -297,10 +375,10 @@
 
           in
           mkClangShell (
-            commonArgs
+            commonBuildCrateArgs
             // {
               # Include devShell inputs:
-              nativeBuildInputs = commonArgs.nativeBuildInputs ++ devShellInputs;
+              nativeBuildInputs = commonBuildCrateArgs.nativeBuildInputs ++ devShellInputs;
 
               LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath dynlibs;
             }
