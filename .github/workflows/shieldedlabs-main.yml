@@ -43,7 +43,7 @@ jobs:
           RUSTFLAGS: "-C debuginfo=2"
         run: |
           cargo build --bin zebrad ${{ matrix.cargo_flags }}
-          mkdir dist
+          mkdir -p dist
           cp "target/debug/zebrad" ./dist/zebra-crosslink
           sha256sum ./dist/zebra-crosslink | tee ./dist/zebra-crosslink.sha256
 
@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
 
-      - name: Build (Arch via Docker)
+      - name: Build Debug Binary
         shell: bash
         run: |
           set -euxo pipefail
@@ -106,42 +106,38 @@ jobs:
 
 
   build-macos:
-    name: Build Arch Binaries
+    name: Build MacOS Binaries
     strategy:
       fail-fast: false
+      matrix:
+        include:
+          - cargo_flags: ""
+            artifact_title: "zebra-crosslink (MacOS)"
+          - cargo_flags: "--features viz_gui"
+            artifact_title: "zebra-crosslink-viz (MacOS)"
     runs-on: macos-15-xlarge
-    if: false
     steps:
-      # ---------- macOS native ----------
-      - name: Install Rust (macOS)
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
 
-      - name: Cache (macOS)
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: .
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Build (macOS)
+      - name: Build (MacOS)
         env:
           RUSTFLAGS: "-C strip=symbols"
         run: |
-          cargo build --release --bin "${BIN_NAME}" ${{ steps.names.outputs.cargo_features }}
-          cp "target/release/${BIN_NAME}" "${{ steps.names.outputs.asset_name }}"
-          strip -x "${{ steps.names.outputs.asset_name }}" || true
+          brew install protobuf
+          cargo build --bin zebrad ${{ matrix.cargo_flags }}
+          mkdir -p dist
+          cp "target/debug/zebrad" ./dist/zebra-crosslink
+          shasum -a 256 ./dist/zebra-crosslink | tee ./dist/zebra-crosslink.sha256
 
-      - name: Generate checksums (macOS)
-        run: |
-          shasum -a 256 "${{ steps.names.outputs.asset_name }}" | tee "${{ steps.names.outputs.asset_name }}.sha256"
-
-      # ---------- Upload artifacts ----------
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.names.outputs.asset_name }}
+          name: ${{ matrix.artifact_title }}
           path: |
-            ${{ steps.names.outputs.asset_name }}
-            ${{ steps.names.outputs.asset_name }}.sha256
+            ./dist/zebra-crosslink
+            ./dist/zebra-crosslink.sha256
           if-no-files-found: error
 
   release:
