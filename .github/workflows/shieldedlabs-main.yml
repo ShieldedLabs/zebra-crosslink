@@ -43,29 +43,38 @@ jobs:
           RUSTFLAGS: "-C debuginfo=2"
         run: |
           cargo build --bin zebrad ${{ matrix.cargo_flags }}
-          cp "target/debug/zebrad" zebra-crosslink
-          sha256sum zebra-crosslink | tee zebra-crosslink.sha256
+          mkdir dist
+          cp "target/debug/zebrad" ./dist/zebra-crosslink
+          sha256sum ./dist/zebra-crosslink | tee ./dist/zebra-crosslink.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_title }}
           path: |
-            zebra-crosslink 
-            zebra-crosslink.sha256
+            ./dist/zebra-crosslink
+            ./dist/zebra-crosslink.sha256
           if-no-files-found: error
 
   build-arch:
     name: Build Arch Binaries
     strategy:
       fail-fast: false
+      matrix:
+        include:
+          - cargo_flags: ""
+            artifact_title: "zebra-crosslink (Arch)"
+          - cargo_flags: "--features viz_gui"
+            artifact_title: "zebra-crosslink-viz (Arch)"
     runs-on: blacksmith-8vcpu-ubuntu-2404
-    if: false
     steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+
       - name: Build (Arch via Docker)
         shell: bash
         run: |
-          # Use volumes so cargo registry/target are cached in workspace
+          set -euxo pipefail
           mkdir -p .cargo-cache/registry .cargo-cache/git target
           docker run --rm \
             -v "$PWD":/work \
@@ -74,14 +83,27 @@ jobs:
             -e RUSTUP_HOME=/work/.cargo-cache/rustup \
             archlinux:latest bash -lc '
               set -eux
-              pacman -Syu --noconfirm base-devel git curl pkgconf openssl clang mold binutils
+              pacman -Syu --noconfirm --needed \
+                base-devel git curl pkgconf openssl clang mold binutils cmake protobuf alsa-lib
               curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
               source /work/.cargo-cache/env
+              export CC=clang CXX=clang++
               export RUSTFLAGS="-C link-arg=-Wl,-s"
-              cargo build --release --bin "'"$BIN_NAME"'" '"${{ steps.names.outputs.cargo_features }}"'
+              cargo build --bin zebrad '"${{ matrix.cargo_flags }}"'
             '
-          cp "target/release/${BIN_NAME}" "${{ steps.names.outputs.asset_name }}"
-          strip "${{ steps.names.outputs.asset_name }}" || true
+          mkdir dist
+          cp "target/debug/zebrad" ./dist/zebra-crosslink
+          sha256sum ./dist/zebra-crosslink | tee ./dist/zebra-crosslink.sha256
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_title }}
+          path: |
+            ./dist/zebra-crosslink
+            ./dist/zebra-crosslink.sha256
+          if-no-files-found: error
+
 
   build-macos:
     name: Build Arch Binaries
