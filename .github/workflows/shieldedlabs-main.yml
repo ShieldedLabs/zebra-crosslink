@@ -1,65 +1,175 @@
-name: Cut Zebra Crosslink release
+name: Release on push to main
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
 
 permissions:
   contents: write
-  packages: read
 
-on:
-  workflow_dispatch:
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BIN_NAME: zebra-crosslink
 
 jobs:
-  release:
-    name: Build & Release
-    runs-on: ubuntu-latest-xl
-    concurrency:
-      group: release-${{ github.ref }}
-      cancel-in-progress: true
-
+  build-ubuntu:
+    name: Build Ubuntu Binaries
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cargo_flags: ""
+            artifact_title: "zebra-crosslink (Ubuntu)"
+          - cargo_flags: "--features viz_gui"
+            artifact_title: "zebra-crosslink-viz (Ubuntu)"
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     steps:
-    - uses: actions/checkout@v4
-      with: { fetch-depth: 0 }
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
 
-    - uses: awalsh128/cache-apt-pkgs-action@latest
-      with:
-        packages: protobuf-compiler
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: protobuf-compiler libasound2-dev
+          version: 1.0
 
-    - uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build Debug Binary
+        env:
+          RUSTFLAGS: "-C debuginfo=2"
+        run: |
+          cargo build --bin zebrad ${{ matrix.cargo_flags }}
+          cp "target/debug/zebrad" zebra-crosslink
+          sha256sum zebra-crosslink | tee zebra-crosslink.sha256
 
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: 1.89.0
-        components: clippy, rustfmt
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_title }}
+          path: |
+            zebra-crosslink 
+            zebra-crosslink.sha256
+          if-no-files-found: error
 
-    - run: cargo fmt --check
-    - run: cargo build --release --locked
+  build-arch:
+    name: Build Arch Binaries
+    strategy:
+      fail-fast: false
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    if: false
+    steps:
+      - name: Build (Arch via Docker)
+        shell: bash
+        run: |
+          # Use volumes so cargo registry/target are cached in workspace
+          mkdir -p .cargo-cache/registry .cargo-cache/git target
+          docker run --rm \
+            -v "$PWD":/work \
+            -w /work \
+            -e CARGO_HOME=/work/.cargo-cache \
+            -e RUSTUP_HOME=/work/.cargo-cache/rustup \
+            archlinux:latest bash -lc '
+              set -eux
+              pacman -Syu --noconfirm base-devel git curl pkgconf openssl clang mold binutils
+              curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
+              source /work/.cargo-cache/env
+              export RUSTFLAGS="-C link-arg=-Wl,-s"
+              cargo build --release --bin "'"$BIN_NAME"'" '"${{ steps.names.outputs.cargo_features }}"'
+            '
+          cp "target/release/${BIN_NAME}" "${{ steps.names.outputs.asset_name }}"
+          strip "${{ steps.names.outputs.asset_name }}" || true
 
-    # Derive version from Cargo.toml
-    - id: cargo_meta
-      run: |
-        VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[0].version')
-        echo "VERSION=${VERSION}" >> $GITHUB_ENV
+  build-macos:
+    name: Build Arch Binaries
+    strategy:
+      fail-fast: false
+    runs-on: macos-15-xlarge
+    if: false
+    steps:
+      # ---------- macOS native ----------
+      - name: Install Rust (macOS)
+        uses: dtolnay/rust-toolchain@stable
 
-    # Create a tag if it doesn't already exist
-    - run: |
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
-        if ! git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-          git tag -a "v${VERSION}" -m "Release v${VERSION}"
-          git push origin "v${VERSION}"
-        else
-          echo "Tag v${VERSION} already exists"
-        fi
+      - name: Cache (macOS)
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: .
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
-    # Create a GitHub release and attach the binary
-    - uses: ncipollo/release-action@v1
-      with:
-        tag: v${{ env.VERSION }}
-        name: v${{ env.VERSION }}
-        artifacts: target/release/zebrad
-        generateReleaseNotes: true
+      - name: Build (macOS)
+        env:
+          RUSTFLAGS: "-C strip=symbols"
+        run: |
+          cargo build --release --bin "${BIN_NAME}" ${{ steps.names.outputs.cargo_features }}
+          cp "target/release/${BIN_NAME}" "${{ steps.names.outputs.asset_name }}"
+          strip -x "${{ steps.names.outputs.asset_name }}" || true
+
+      - name: Generate checksums (macOS)
+        run: |
+          shasum -a 256 "${{ steps.names.outputs.asset_name }}" | tee "${{ steps.names.outputs.asset_name }}.sha256"
+
+      # ---------- Upload artifacts ----------
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.names.outputs.asset_name }}
+          path: |
+            ${{ steps.names.outputs.asset_name }}
+            ${{ steps.names.outputs.asset_name }}.sha256
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    if: false
+    needs: [ build-ubuntu, build-arch, build-macos ]
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: List assets
+        id: list_assets
+        run: |
+          find dist -type f -maxdepth 2 -print | sort
+          # Flatten into a glob list for the release step
+          files=$(find dist -type f -maxdepth 2 -print | tr '\n' ' ')
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+
+      - name: Build release notes
+        id: notes
+        run: |
+          UTC_NOW="$(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo "date=$UTC_NOW" >> "$GITHUB_OUTPUT"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: rel-${{ github.run_id }}-${{ github.sha }}
+          name: Zebra Crosslink build for ${{ github.sha }}
+          body: |
+            Commit: ${{ github.sha }}
+            Built at: ${{ steps.notes.outputs.date }}
+
+            Assets:
+            - zebra-crosslink-ubuntu
+            - zebra-crosslink-ubuntu.sha256
+            - zebra-crosslink-ubuntu-viz
+            - zebra-crosslink-ubuntu-viz.sha256
+            - zebra-crosslink-arch
+            - zebra-crosslink-arch.sha256
+            - zebra-crosslink-arch-viz
+            - zebra-crosslink-arch-viz.sha256
+            - zebra-crosslink-macos-arm64
+            - zebra-crosslink-macos-arm64.sha256
+            - zebra-crosslink-macos-arm64-viz
+            - zebra-crosslink-macos-arm64-viz.sha256
+          files: ${{ steps.list_assets.outputs.files }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
