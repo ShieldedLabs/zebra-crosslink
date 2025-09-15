@@ -216,7 +216,13 @@
             mdbook
             mdbook-mermaid
           ];
-          builder = pkgs.writeShellScript "${name}-builder.sh" ''mdbook build --dest-dir "$out/book/book" "$src/"'';
+          builder = pkgs.writeShellScript "${name}-builder.sh" ''
+            if mdbook build --dest-dir "$out/book/book" "$src/" 2>&1 | grep -E 'ERROR|WARN'
+            then
+              echo 'Failing due to mdbook errors/warnings.'
+              exit 1
+            fi
+          '';
         };
 
         storepath-to-derivation =
