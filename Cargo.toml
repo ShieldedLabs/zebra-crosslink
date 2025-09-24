@@ -165,6 +165,7 @@ x25519-dalek = "2.0.1"
 zcash_note_encryption = "0.4.1"
 zcash_script = "0.3.2"
 config = { version = "0.15.14", features = ["toml"] }
+which = "8.0.0"
 
 [workspace.metadata.release]
 
@@ -295,3 +296,11 @@ panic = "abort"
 #     - add "-flto=thin" to all C/C++ code builds
 #     - see https://doc.rust-lang.org/rustc/linker-plugin-lto.html#cc-code-as-a-dependency-in-rust
 lto = "thin"
+
+
+[workspace.lints.rust]
+# The linter should ignore these expected config flags/values
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(tokio_unstable)', # Used by tokio-console
+    'cfg(zcash_unstable, values("zfuture", "nu6.1", "nu7"))' # Used in Zebra and librustzcash
+] }
