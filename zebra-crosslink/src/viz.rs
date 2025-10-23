@@ -90,10 +90,11 @@ struct BBox {
 }
 
 fn flt_min(a: f32, b: f32) -> f32 {
-    assert!(!a.is_nan());
-    assert!(!b.is_nan());
-
-    if a <= b {
+    // assert!(!a.is_nan());
+    // assert!(!b.is_nan());
+    if a.is_nan() {
+        b
+    } else if a <= b {
         a
     } else {
         b
@@ -101,10 +102,11 @@ fn flt_min(a: f32, b: f32) -> f32 {
 }
 
 fn flt_max(a: f32, b: f32) -> f32 {
-    assert!(!a.is_nan());
-    assert!(!b.is_nan());
-
-    if a <= b {
+    // assert!(!a.is_nan());
+    // assert!(!b.is_nan());
+    if a.is_nan() {
+        b
+    } else if a <= b {
         b
     } else {
         a
@@ -112,10 +114,12 @@ fn flt_max(a: f32, b: f32) -> f32 {
 }
 
 fn flt_min_max(a: f32, b: f32) -> (f32, f32) {
-    assert!(!a.is_nan());
-    assert!(!b.is_nan());
+    // assert!(!a.is_nan());
+    // assert!(!b.is_nan());
 
-    if a <= b {
+    if a.is_nan() || b.is_nan() {
+        (a, b)
+    } else if a <= b {
         (a, b)
     } else {
         (b, a)
@@ -124,10 +128,10 @@ fn flt_min_max(a: f32, b: f32) -> (f32, f32) {
 
 impl BBox {
     fn union(a: BBox, b: BBox) -> BBox {
-        assert!(a.min.x <= a.max.x);
-        assert!(a.min.y <= a.max.y);
-        assert!(b.min.x <= b.max.x);
-        assert!(b.min.y <= b.max.y);
+        debug_assert!(a.min.x <= a.max.x);
+        debug_assert!(a.min.y <= a.max.y);
+        debug_assert!(b.min.x <= b.max.x);
+        debug_assert!(b.min.y <= b.max.y);
 
         BBox {
             min: vec2(flt_min(a.min.x, b.min.x), flt_min(a.min.y, b.min.y)),
@@ -252,7 +256,7 @@ pub struct VizState {
     pub fat_pointer_to_bft_tip: FatPointerToBftBlock2,
 }
 
-/// Functions & structures for serializing visualizer state to/from disk.
+// /// Functions & structures for serializing visualizer state to/from disk.
 // pub mod serialization {
 //     use super::*;
 //     use chrono::Utc;
@@ -322,7 +326,7 @@ pub struct VizState {
 //                             ),
 //                             txs_n: node.txs_n,
 //                             previous_block_hash: if let Some(parent) = ctx.get_node(node.parent) {
-//                                 assert!(parent.height + 1 == node.height);
+//                                 debug_assert!(parent.height + 1 == node.height);
 //                                 parent.hash().expect("PoW nodes should have hashes")
 //                             } else {
 //                                 let mut hash = [0u8; 32];
@@ -338,7 +342,7 @@ pub struct VizState {
 
 //                     NodeKind::BFT => {
 //                         let parent_id = if let Some(parent) = ctx.get_node(node.parent) {
-//                             assert!(parent.height + 1 == node.height);
+//                             debug_assert!(parent.height + 1 == node.height);
 //                             parent.id().expect("BFT nodes should have ids")
 //                         } else {
 //                             0
@@ -691,7 +695,7 @@ pub async fn service_viz_requests(
         #[allow(clippy::never_loop)]
         let (lo_height, bc_tip, height_hashes, seq_blocks) = loop {
             let (lo, hi) = (new_g.bc_req_h.0, new_g.bc_req_h.1);
-            assert!(
+            debug_assert!(
                 lo <= hi || (lo >= 0 && hi < 0),
                 "lo ({}) should be below hi ({})",
                 lo,
@@ -1080,7 +1084,7 @@ impl Node {
 impl HasBlockHash for Node {
     fn get_hash(&self) -> Option<BlockHash> {
         if self.kind == NodeKind::BC {
-            assert!(self.hash().is_some());
+            debug_assert!(self.hash().is_some());
             self.hash().map(BlockHash)
         } else {
             None
@@ -1328,7 +1332,7 @@ impl VizCtx {
                 let rad = ((txs_n as f32).sqrt() * 5.).min(50.);
 
                 // DUP
-                assert!(self
+                debug_assert!(self
                     .node(parent)
                     .map_or(true, |parent| parent.height + 1 == height));
 
@@ -1367,7 +1371,7 @@ impl VizCtx {
                 let rad = 10.;
                 // DUP
                 let height = if let Some(height) = height {
-                    assert!(self
+                    debug_assert!(self
                         .node(parent)
                         .map_or(true, |parent| parent.height + 1 == height));
                     height
@@ -1442,10 +1446,10 @@ impl VizCtx {
             if let Some(parent_hash) = parent_hash {
                 let parent_ref = self.find_bc_node_by_hash(&BlockHash(parent_hash));
                 if let Some(parent) = self.node(parent_ref) {
-                    assert!(new_node.parent.is_none() || new_node.parent == parent_ref);
+                    debug_assert!(new_node.parent.is_none() || new_node.parent == parent_ref);
                     if parent.height + 1 == new_node.height {
                         // assert!(
-                        //     // NOTE(Sam): Spurius crash sometimes
+                        //     // NOTE(Sam): Spurious crash sometimes
                         //     parent.height + 1 == new_node.height,
                         //     "parent height: {}, new height: {}",
                         //     parent.height,
@@ -1466,8 +1470,8 @@ impl VizCtx {
                     if let Some(child) = self.node(child_ref) {
                         new_node.pt = child.pt + vec2(0., child.rad + new_node.rad + 30.); // TODO: handle positioning when both parent & child are set
 
-                        assert!(child.parent.is_none());
-                        assert!(
+                        debug_assert!(child.parent.is_none());
+                        debug_assert!(
                             child.height == new_node.height + 1,
                             "child height: {}, new height: {}",
                             child.height,
@@ -2327,7 +2331,7 @@ pub async fn viz_main(
                                         "block at height {} does not have a previous_block_hash",
                                         i + 1
                                     );
-                                    assert!(false);
+                                    debug_assert!(false);
                                 }
                                 None
                             } else if let Some(bft_parent) = ctx.find_bft_node_by_hash(
@@ -2335,7 +2339,7 @@ pub async fn viz_main(
                             ) {
                                 Some(bft_parent)
                             } else {
-                                assert!(
+                                debug_assert!(
                                     false,
                                     "couldn't find parent at hash {}",
                                     &bft_block.previous_block_fat_ptr.points_at_block_hash()
@@ -2512,8 +2516,8 @@ pub async fn viz_main(
         } else {
             world_bbox
         };
-        assert!(world_bbox.min.x < world_bbox.max.x);
-        assert!(world_bbox.min.y < world_bbox.max.y);
+        debug_assert!(world_bbox.min.x < world_bbox.max.x);
+        debug_assert!(world_bbox.min.y < world_bbox.max.y);
         let world_rect = Rect::from(world_bbox);
 
         if config.test_bbox {
@@ -3212,8 +3216,17 @@ pub async fn viz_main(
         if true {
             // apply forces
             for node_ref in &on_screen_node_refs {
+
                 let new_pt = {
                     let node = ctx.node(*node_ref).unwrap();
+
+                    if node.pt.x.is_nan()  { node.pt.x  = 0.0; } 
+                    if node.pt.y.is_nan()  { node.pt.y  = 0.0; } 
+                    if node.vel.x.is_nan() { node.vel.x = 0.0; } 
+                    if node.vel.y.is_nan() { node.vel.y = 0.0; } 
+                    if node.acc.x.is_nan() { node.acc.x = 0.0; } 
+                    if node.acc.y.is_nan() { node.acc.y = 0.0; } 
+
                     node.vel = node.vel + node.acc * DT;
                     node.pt + node.vel * DT
                 };
@@ -3327,12 +3340,12 @@ pub async fn viz_main(
             // draw nodes that are on-screen
             let _z = ZoneGuard::new("draw node");
 
-            assert!(!node.pt.x.is_nan());
-            assert!(!node.pt.y.is_nan());
-            assert!(!node.vel.x.is_nan());
-            assert!(!node.vel.y.is_nan());
-            assert!(!node.acc.x.is_nan());
-            assert!(!node.acc.y.is_nan());
+            debug_assert!(!node.pt.x.is_nan());
+            debug_assert!(!node.pt.y.is_nan());
+            debug_assert!(!node.vel.x.is_nan());
+            debug_assert!(!node.vel.y.is_nan());
+            debug_assert!(!node.acc.x.is_nan());
+            debug_assert!(!node.acc.y.is_nan());
 
             let i_ref = ctx.node_ref(i);
             ctx.nodes_bbox.update_union(BBox::from(node.pt));

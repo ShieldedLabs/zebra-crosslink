@@ -344,9 +344,9 @@ impl WriteBlockWorkerTask {
                         non_finalized_state.crosslink_finalize(hash)
                     {
                         update_latest_chain_channels(
-                            &non_finalized_state,
+                            non_finalized_state,
                             chain_tip_sender,
-                            &non_finalized_state_sender,
+                            non_finalized_state_sender,
                             &mut last_zebra_mined_log_height,
                         );
 

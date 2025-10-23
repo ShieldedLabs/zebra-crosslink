@@ -338,7 +338,7 @@ async fn malachite_system_main_loop(
 
                             let other_type: MalLocallyProposedValue<MalContext> =
                                 MalLocallyProposedValue {
-                                    height: height,
+                                    height,
                                     round: MalRound::new(round as u32),
                                     value: MalValue::new_block(&block),
                                 };
@@ -736,8 +736,8 @@ async fn malachite_system_main_loop(
                     let signature = my_signing_provider.sign(&hash);
 
                     let streamed_proposal = MalStreamedProposal {
-                        height: height,
-                        round: round,
+                        height,
+                        round,
                         pol_round: valid_round,
                         proposer: address.0, // @Zooko: security orange flag: should be hash of key instead; this should only be used for lookup
                         data_bytes,

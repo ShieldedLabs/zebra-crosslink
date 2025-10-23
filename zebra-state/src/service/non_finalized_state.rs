@@ -240,6 +240,7 @@ impl NonFinalizedState {
     }
 
     /// Remove chains that are no longer valid, i.e. they don't contain the newly-finalized hash
+    #[allow(clippy::borrow_deref_ref, clippy::mutable_key_type)]
     pub fn remove_chains_invalidated_by_crosslink_finalized(&mut self, hash: block::Hash) {
         let mut new_chain_set = self.chain_set.clone();
         for chain in self.chain_iter() {
@@ -270,8 +271,7 @@ impl NonFinalizedState {
         {
             info!("crosslink finalize: found block in chain: {}", hash);
             let height = chain_containing_finalized_block
-                .height_by_hash(hash)
-                .unwrap();
+                .height_by_hash(hash)?;
 
             self.chain_set.retain(|c| c.contains_block_hash(hash));
 

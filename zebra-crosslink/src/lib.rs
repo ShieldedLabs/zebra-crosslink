@@ -821,6 +821,7 @@ async fn new_decided_bft_block_from_malachite(
     #[cfg(feature = "malachite")]
     return (true, return_validator_list_because_of_malachite_bug);
 
+    #[cfg(not(feature = "malachite"))]
     tenderlink_roster_from_internal(&internal.validators_at_current_height)
 }
 
@@ -899,6 +900,7 @@ async fn validate_bft_block_from_malachite_already_locked(
     return tenderlink::TMStatus::Pass;
 }
 
+#[allow(clippy::int_plus_one)]
 fn fat_pointer_to_block_at_height(
     bft_blocks: &[BftBlock],
     fat_pointer_to_tip: &FatPointerToBftBlock2,
@@ -919,6 +921,7 @@ fn fat_pointer_to_block_at_height(
     }
 }
 
+#[allow(clippy::int_plus_one)]
 async fn get_historical_bft_block_at_height(
     tfl_handle: &TFLServiceHandle,
     at_height: u64,

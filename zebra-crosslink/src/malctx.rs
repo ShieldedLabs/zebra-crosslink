@@ -95,6 +95,7 @@ impl std::fmt::Display for FatPointerToBftBlock2 {
     }
 }
 
+#[allow(clippy::fallible_impl_from)]
 impl From<&MalCommitCertificate<MalContext>> for FatPointerToBftBlock2 {
     fn from(certificate: &MalCommitCertificate<MalContext>) -> FatPointerToBftBlock2 {
         let vote_template = MalVote {
@@ -175,13 +176,14 @@ impl FatPointerToBftBlock2 {
         }
         buf
     }
-    #[allow(clippy::reversed_empty_ranges)]
+
+    #[allow(clippy::reversed_empty_ranges, clippy::unwrap_in_result, clippy::ptr_arg)]
     pub fn try_from_bytes(bytes: &Vec<u8>) -> Option<FatPointerToBftBlock2> {
         if bytes.len() < 76 - 32 + 2 {
             return None;
         }
-        let vote_for_block_without_finalizer_public_key = bytes[0..76 - 32].try_into().unwrap();
-        let len = u16::from_le_bytes(bytes[76 - 32..2].try_into().unwrap()) as usize;
+        let vote_for_block_without_finalizer_public_key = bytes[0..76 - 32].try_into().ok()?;
+        let len = u16::from_le_bytes(bytes[76 - 32..2].try_into().ok()?) as usize;
 
         if 76 - 32 + 2 + len * (32 + 64) > bytes.len() {
             return None;
@@ -214,6 +216,8 @@ impl FatPointerToBftBlock2 {
             })
             .collect()
     }
+
+    #[allow(clippy::useless_conversion)]
     pub fn validate_signatures(&self) -> bool {
         let mut batch = ed25519_zebra::batch::Verifier::new();
         for (vote, signature) in self.inflate() {
@@ -348,6 +352,7 @@ impl Protobuf for MalStreamedProposal {
     type Proto = malctx_schema_proto::StreamedProposal;
 
     #[cfg_attr(coverage_nightly, coverage(off))]
+    #[allow(clippy::bind_instead_of_map)]
     fn from_proto(proto: Self::Proto) -> Result<Self, ProtoError> {
         Ok(MalStreamedProposal {
             height: MalHeight::new(proto.height),
@@ -369,6 +374,7 @@ impl Protobuf for MalStreamedProposal {
     }
 
     #[cfg_attr(coverage_nightly, coverage(off))]
+    #[allow(clippy::unwrap_in_result)]
     fn to_proto(&self) -> Result<Self::Proto, ProtoError> {
         Ok(Self::Proto {
             height: self.height.as_u64(),

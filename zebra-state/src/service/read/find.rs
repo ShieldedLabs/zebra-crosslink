@@ -163,11 +163,12 @@ pub fn non_finalized_state_contains_block_hash(
             }
         }
     }
-    return None;
+    None
 }
 
 /// Returns the location of the block if present in the finalized state.
 /// Returns None if the block hash is not found in the finalized state.
+#[allow(clippy::manual_map)]
 pub fn finalized_state_contains_block_hash(db: &ZebraDb, hash: block::Hash) -> Option<KnownBlock> {
     if let Some(height) = db.height(hash) {
         Some(KnownBlock {

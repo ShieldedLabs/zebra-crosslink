@@ -37,6 +37,7 @@ impl CommandBuf {
     }
 
     /// get a rust string from the fixed-size buffer
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(str: &str) -> Self {
         let mut buf = Self::empty();
         let n = std::cmp::min(str.len(), Self::SIZE);
@@ -188,13 +189,13 @@ impl FatPointerToBftBlock {
         buf
     }
     /// Try to deserialize a fat pointer from the provided dynamic array of bytes.
-    #[allow(clippy::reversed_empty_ranges)]
-    pub fn try_from_bytes(bytes: &Vec<u8>) -> Option<FatPointerToBftBlock> {
+    #[allow(clippy::reversed_empty_ranges, clippy::unwrap_in_result)]
+    pub fn try_from_bytes(bytes: &[u8]) -> Option<FatPointerToBftBlock> {
         if bytes.len() < 76 - 32 + 2 {
             return None;
         }
-        let vote_for_block_without_finalizer_public_key = bytes[0..76 - 32].try_into().unwrap();
-        let len = u16::from_le_bytes(bytes[76 - 32..2].try_into().unwrap()) as usize;
+        let vote_for_block_without_finalizer_public_key = bytes[0..76 - 32].try_into().ok()?;
+        let len = u16::from_le_bytes(bytes[76 - 32..2].try_into().ok()?) as usize;
 
         if 76 - 32 + 2 + len * (32 + 64) > bytes.len() {
             return None;
