@@ -12,11 +12,7 @@ Scope for Crosslink
 * Staking allows a larger number of users to participate actively in the network than mining does, and to become direct recipients of ZEC issued by the blockchain. This increases the size and decentralization of the set of users and stakeholders [^economies_of_scale].
 * Staking ZEC replaces some of the sell pressure from miners with buy pressure from finalizers. This is good because the price of ZEC is the fuel for the mission and attracts users.
 
-[^economies_of_scale]: 
-  * In Proof-of-Work, smaller miners have a substantial economic disadvantage compared to larger mining operations.
-  * In Proof-of-Stake, smaller finalizers have an economic disadvantage compared to larger finalizer services, but the disadvantage is not as pronounced as in Proof-of-Work mining.
-  * In Proof-of-Stake, smaller delegators compete on a level playing field with larger delegators, earning roughly the same reward with roughly the same risk.
-  * Note that delegators get slightly less reward than finalizers.
+[^economies_of_scale]: In Proof-of-Work, smaller miners have a substantial economic disadvantage compared to larger mining operations. In Proof-of-Stake, smaller finalizers have an economic disadvantage compared to larger finalizer services, but the disadvantage is not as pronounced as in Proof-of-Work mining. In Proof-of-Stake, smaller delegators compete on a level playing field with larger delegators, earning roughly the same reward with roughly the same risk. Note that delegators get slightly less reward than finalizers.
 
 ## Why a Proof-of-Stake finality gadget on top of a Proof-of-Work blockchain?
 
