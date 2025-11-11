@@ -129,6 +129,8 @@ pub mod config {
 pub mod test_format;
 #[cfg(feature = "viz_gui")]
 pub mod viz;
+#[cfg(feature = "viz_gui")]
+pub mod viz2;
 
 use crate::service::{TFLServiceCalls, TFLServiceHandle};
 
@@ -1090,7 +1092,7 @@ async fn tfl_service_main_loop(internal_handle: TFLServiceHandle) -> Result<(), 
         let rt = tokio::runtime::Handle::current();
         let viz_tfl_handle = internal_handle.clone();
         tokio::task::spawn_blocking(move || {
-            rt.block_on(viz::service_viz_requests(viz_tfl_handle, params))
+            rt.block_on(viz2::service_viz_requests(viz_tfl_handle, params))
         });
     }
 

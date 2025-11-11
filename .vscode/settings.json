@@ -2,5 +2,10 @@
     "rust-analyzer.check": {
         "command": "check",
         "allTargets": false
-    }
+    },
+    "rust-analyzer.cargo.cfgs": [
+        "debug_assertions",
+        "miri",
+        "viz_gui"
+    ]
 }
