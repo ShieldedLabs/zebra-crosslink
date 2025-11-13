@@ -81,7 +81,7 @@ package = "tenderlink"
 [dependencies.visualizer_zcash]
 version = "0.1.0"
 git = "https://github.com/ShieldedLabs/visualizer_zcash"
-rev = "70071d44a6ca2f4dceb5cbf356ca1f808c6a311c"
+rev = "c3d43e5664b265b10d9b246e21205400f101fe40"
 #path = "/home/sam/dev/visualizer_zcash"
 package = "visualizer_zcash"
 
