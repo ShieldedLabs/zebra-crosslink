@@ -1,11 +1,11 @@
-# `zebra-crosslink`
+# The `zebra-crosslink` Book
 
 `zebra-crosslink` is [Shielded Labs](https://shieldedlabs.net)'s implementation of *Zcash
-Crosslink*, a hybrid PoW/PoS consensus protocol for [Zcash](https://z.cash/). Refer to the [Rationale, Scope, and Goals](design/scoping.md) to understand our effort.
+Crosslink*, a hybrid PoW/PoS consensus protocol for [Zcash](https://z.cash/). Refer to the [Rationale, Scope, and Goals](design/scoping.md) to understand our effort. See [our roadmap](https://shieldedlabs.net/roadmap/) for current progress status.
 
 ## Milestone 4a Workshop
 
-If you're here to participate in the Milestone 4a Workshop (either during or after the event), please see the [Milestone 4a Workshop](milestone-4a-workshop.md)
+If you're here to participate in the Milestone 4a Workshop (either during or after the event), please see the [Milestone 4a Workshop](milestone-4a-workshop.md).
 
 ## Prototype Codebase
 
@@ -16,21 +16,13 @@ This [`zebra-crosslink`](https://github.com/ShieldedLabs/zebra-crosslink) codeba
 [`zebra`](https://github.com/ZcashFoundation/zebra).
  If you simply want a modern Zcash production-ready mainnet node, please use that upstream node.
 
-This book is entirely focused on this implementation of *Zcash Crosslink*. For general Zebra usage
-or development documentation, please refer to the official [Zebra Book](https://zebra.zfnd.org/),
-keeping in mind changes in this prototype (which we attempt to thoroughly document here). The
-
-overarching design of *Zcash Crosslink* in this prototype is based off of the [Crosslink 2 hybrid
-construction for the Trailing Finality
-Layer](https://electric-coin-company.github.io/tfl-book/design/crosslink.html).
-
 ### Build and Usage
 
 To try out the software and join the testnet, see [Build and Usage](user/build-and-usage.md).
 
 ### Design and Implementation
 
-See the [Design](design.md) and [Implementation](implementation.md) for an understanding of this software that we update throughout development.
+This book is entirely focused on this implementation of *Zcash Crosslink*. For general Zebra usage or development documentation, please refer to the official [Zebra Book](https://zebra.zfnd.org/). We strive to document the [Design](design.md) and [Implementation](implementation.md) changes in this book.
 
 ## Maintainers
 
