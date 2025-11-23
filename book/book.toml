@@ -1,7 +1,6 @@
 [book]
 authors = ["Shielded Labs <https://shieldedlabs.net>"]
 language = "en"
-multilingual = false
 src = "src"
 title = "The Zebra Crosslink Book"
 
