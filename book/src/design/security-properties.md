@@ -6,7 +6,9 @@ Crosslink is designed and can be analyzed with respect to the following security
 
 Transactions enter a finalized state, and finalized transactions cannot be rolled back. Failure of this security property is called “rollback attack”.
 
-Importantly, all participants who are sufficiently in sync with the consensus agree on finality status, or if there is a failure by the protocol to provide finality, all of those participants agree that this failure occurred. This contrasts with Proof-of-Work, which provides “probabilistic finality”. In that model, every participant must select their own rollback threshold at which point they consider a protocol failure event to have occurred (including malicious rollback attacks). Because these thresholds vary among users, rollbacks naturally fragment users into groups with competing interests in the event of protocol failures.
+Irreversible finality cannot be provided by Proof-of-Work alone, which provides only “probabilistic finality”. In probabilistic finality, the protocol provides no detection or prevention of rollback attacks, so detection and prevention (and remediation) are left up to the users ("the social layer").
+
+Importantly, with irreversible finality, all users who are sufficiently in sync with the consensus agree on finality status, so if there is a failure by the protocol to provide finality, all of those participants agree that this failure occurred. This contrasts with probabilistic finality—in that model, every user must select their own rollback threshold at which point they consider a protocol failure event to have occurred. Because these thresholds vary among users, rollbacks fragment the users into groups with competing interests.
 
 ## _Liveness/Availability_
 
