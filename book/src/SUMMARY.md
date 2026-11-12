@@ -4,7 +4,7 @@
 
 ---
 
-[HISTORICAL CONTENT]()
+# HISTORICAL CONTENT
 
 [Overview](overview.md)
 - [User Documentation](user.md)
